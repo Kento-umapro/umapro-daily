@@ -100,18 +100,36 @@ try {
   }
   log(`ダイニー ${out.dinii.length}行`);
 
-  // ═══ blayn（なんば北心斎橋駅前店・税込表示）═══════════════
+  // ═══ blayn（なんば北心斎橋駅前店）═══════════════════════
+  // ハマりどころ3つ:
+  //   1. 店舗を切り替えないと全部0で返ってくる（/mng/account/switch?shop_id=...）
+  //   2. 日別の日付は ?date=YYYYMM のゼロ埋め（YYYYM だと1月が返る）
+  //   3. 税込/税抜は tax_inclusive_f cookie。既定が税抜なので、#tax_in を押して税込にする
   try {
+  const CFG = JSON.parse(await fs.readFile(path.join(ROOT, 'config.json'), 'utf8'));
+  const B = CFG.blayn;
   const bp = await ctx.newPage();
-  await bp.goto('https://secure.blayn.com/mng/sales/view', { waitUntil: 'domcontentloaded', timeout: 60000 });
-  if (/account\/login/.test(bp.url())) throw new Error('blaynのログインが切れています → node scripts/browser.mjs');
+  await bp.goto(`https://secure.blayn.com/mng/account/switch?shop_id=${B.shop_id}`,
+    { waitUntil: 'domcontentloaded', timeout: 60000 });
+  if (/account\/login/.test(bp.url())) throw new Error('blaynのログインが切れています → login.command');
+
+  const curYm = today.slice(0, 4) + today.slice(5, 7);
+  await bp.goto(`https://secure.blayn.com/mng/sales/view?date=${curYm}`,
+    { waitUntil: 'domcontentloaded', timeout: 60000 });
+  const mode = () => bp.evaluate(() => document.querySelector('.bt_common_text.history div')?.textContent.trim());
+  if ((await mode()) !== '税込') {
+    await bp.evaluate(() => document.querySelector('#tax_in')?.click());
+    await bp.waitForTimeout(3500);
+  }
+  if ((await mode()) !== '税込') throw new Error('blaynを税込表示に切り替えられませんでした');
+
   const ymList = [];
   for (const t = new Date(FROM + 'T00:00:00'); t <= new Date(today + 'T00:00:00'); t.setMonth(t.getMonth() + 1)) {
     ymList.push([t.getFullYear(), t.getMonth() + 1]);
   }
   for (const [y, m] of ymList) {
     const rows = await bp.evaluate(async ({ y, m }) => {
-      const res = await fetch(`/mng/sales/view?t=s&date=${y}${m}`, { credentials: 'include' });
+      const res = await fetch(`/mng/sales/view?date=${y}${String(m).padStart(2, '0')}`, { credentials: 'include' });
       const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
       const acc = [];
       for (const tr of doc.querySelectorAll('table tr')) {
@@ -124,10 +142,9 @@ try {
       return acc;
     }, { y, m });
     for (const r of rows) {
-      if (r.mm !== m) continue;                       // 念のため月がずれた行は捨てる
-      if (r.sales <= 0) continue;                     // 未来日・休業日
+      if (r.mm !== m || r.sales <= 0) continue;
       const date = `${y}-${String(m).padStart(2, '0')}-${String(r.dd).padStart(2, '0')}`;
-      if (date <= today) out.blayn.push({ code: '000400', date, sales: r.sales });
+      if (date <= today) out.blayn.push({ code: B.code, date, sales: r.sales });
     }
   }
   log(`blayn ${out.blayn.length}行`);
