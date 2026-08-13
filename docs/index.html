@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="theme-color" content="#16191d">
+<title>うまプロ 売上</title>
+<style>
+:root{
+  --bg:#14181c; --card:#1d2228; --card2:#232a31; --line:#2c343c;
+  --ink:#eef1f3; --dim:#8b96a1; --dim2:#5f6b76;
+  --ember:#e07a3c; --ember-d:#c4622d; --steel:#7fa8c4; --good:#5fb98a; --bad:#e0705f;
+  --f:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  --m:ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);
+  font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:640px;margin:0 auto;padding:18px 14px 60px;
+  padding-bottom:calc(60px + env(safe-area-inset-bottom))}
+.num{font-family:var(--m);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+
+/* ロック */
+#lock{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;
+  justify-content:center;padding:24px;z-index:50}
+#lock .box{width:100%;max-width:340px;text-align:center}
+#lock h1{font-size:19px;margin:0 0 6px;font-weight:700}
+#lock p{color:var(--dim);font-size:13px;margin:0 0 22px}
+#lock input{width:100%;padding:13px 14px;font-size:16px;background:var(--card);
+  border:1px solid var(--line);border-radius:10px;color:var(--ink);font-family:var(--m)}
+#lock input:focus{outline:none;border-color:var(--ember)}
+#lock button{width:100%;margin-top:10px;padding:13px;font-size:15px;font-weight:700;
+  background:var(--ember-d);color:#fff;border:0;border-radius:10px;font-family:var(--f)}
+#lock .err{color:var(--bad);font-size:13px;margin-top:12px;min-height:18px}
+
+header{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:16px}
+header .t{font-size:13px;font-weight:700;letter-spacing:.1em;color:var(--ember)}
+header .u{font-size:11px;color:var(--dim2);font-family:var(--m)}
+
+.card{background:var(--card);border-radius:14px;padding:16px 16px 15px;margin-bottom:12px}
+.card .lbl{font-size:12px;color:var(--dim);font-weight:600;letter-spacing:.04em}
+.hero .big{font-size:clamp(38px,12vw,52px);font-weight:800;line-height:1.05;margin:6px 0 2px}
+.hero .big .u{font-size:.4em;font-weight:600;color:var(--dim);margin-left:4px}
+.hero .sub{font-size:13px;color:var(--dim)}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;
+  font-weight:700;font-family:var(--m);margin-left:8px;vertical-align:2px}
+.pill.up{background:rgba(95,185,138,.16);color:var(--good)}
+.pill.dn{background:rgba(224,112,95,.16);color:var(--bad)}
+.pill.fl{background:rgba(139,150,161,.16);color:var(--dim)}
+.tag{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:99px;font-size:11px;
+  font-weight:700;background:rgba(224,122,60,.18);color:var(--ember)}
+
+.rows{margin-top:14px;border-top:1px solid var(--line)}
+.row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .nm{flex:1;font-size:13.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .vl{font-family:var(--m);font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+.row .rt{font-family:var(--m);font-size:11.5px;width:52px;text-align:right}
+.kind{display:inline-block;font-size:9.5px;font-family:var(--m);padding:1px 4px;border-radius:4px;
+  margin-right:6px;vertical-align:1px}
+.k-r38{background:rgba(127,168,196,.18);color:var(--steel)}
+.k-r5{background:rgba(139,150,161,.18);color:var(--dim)}
+.k-own{background:rgba(224,122,60,.18);color:var(--ember)}
+
+.bars{display:flex;align-items:flex-end;gap:2px;height:56px;margin:12px 0 4px}
+.bars i{flex:1;background:var(--steel);opacity:.5;border-radius:2px 2px 0 0;min-height:2px}
+.bars i.we{background:var(--ember);opacity:.75}
+.bars i.last{opacity:1}
+.barlab{display:flex;justify-content:space-between;font-size:10.5px;color:var(--dim2);font-family:var(--m)}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.two .card{margin:0}
+.mid{font-size:26px;font-weight:800;margin:4px 0 1px}
+.mid .u{font-size:.5em;font-weight:600;color:var(--dim);margin-left:3px}
+.note{font-size:11.5px;color:var(--dim2)}
+
+.pace{border:1px solid var(--line)}
+.pace.ok{border-color:rgba(95,185,138,.45)}
+.pace.ng{border-color:rgba(224,112,95,.45)}
+.paceHead{display:flex;align-items:baseline;gap:8px;margin:6px 0 2px;flex-wrap:wrap}
+.paceBig{font-size:clamp(30px,9vw,40px);font-weight:800;line-height:1.1}
+.paceWord{font-size:15px;font-weight:700}
+.pace.ok .paceBig,.pace.ok .paceWord{color:var(--good)}
+.pace.ng .paceBig,.pace.ng .paceWord{color:var(--bad)}
+.prog{height:7px;background:var(--card2);border-radius:99px;overflow:hidden;margin:10px 0 7px}
+.prog i{display:block;height:100%;background:linear-gradient(90deg,var(--ember-d),var(--ember))}
+.progrow{display:flex;justify-content:space-between;font-size:11.5px;color:var(--dim);font-family:var(--m)}
+
+button.more{width:100%;padding:13px;background:var(--card);border:1px solid var(--line);
+  border-radius:12px;color:var(--ink);font-size:14px;font-weight:700;font-family:var(--f);margin-top:6px}
+button.more:active{background:var(--card2)}
+#detail{display:none}
+#detail.on{display:block}
+h2{font-size:13px;color:var(--ember);letter-spacing:.08em;margin:22px 0 8px;font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{padding:6px 4px;text-align:right;border-bottom:1px solid var(--line);
+  font-family:var(--m);font-variant-numeric:tabular-nums;white-space:nowrap}
+th{color:var(--dim);font-weight:600;font-size:11px;font-family:var(--f)}
+td:first-child,th:first-child{text-align:left;font-family:var(--f)}
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+tr.now td{color:var(--ember)}
+.foot{color:var(--dim2);font-size:11px;margin-top:22px;line-height:1.7}
+</style>
+</head>
+<body>
+
+<div id="lock"><div class="box">
+  <h1>うまプロ 売上</h1>
+  <p>合言葉を入れてください</p>
+  <input id="pw" type="password" inputmode="text" autocomplete="current-password" placeholder="合言葉">
+  <button id="go">開く</button>
+  <div class="err" id="err"></div>
+</div></div>
+
+<div class="wrap" id="app" hidden>
+  <header>
+    <div class="t">うまプロ 売上</div>
+    <div class="u" id="updated"></div>
+  </header>
+
+  <div class="card hero">
+    <div class="lbl" id="ydLbl">昨日の売上</div>
+    <div class="big num"><span id="ydTotal">—</span><span class="u">円</span></div>
+    <div class="sub"><span id="ydCmp"></span></div>
+    <div class="rows" id="ydRows"></div>
+  </div>
+
+  <div class="card pace" id="paceCard">
+    <div class="lbl">5億達成のペース</div>
+    <div class="paceHead">
+      <span class="paceBig num" id="paceGap">—</span>
+      <span class="paceWord" id="paceWord"></span>
+    </div>
+    <div class="sub" id="paceSub"></div>
+    <div class="prog"><i id="pbar" style="width:0"></i></div>
+    <div class="progrow"><span id="pL"></span><span id="pR"></span></div>
+    <div class="rows">
+      <div class="row"><span class="nm">残り<span id="restDays"></span>日 1日あたり必要</span>
+        <span class="vl" id="needDay"></span></div>
+      <div class="row"><span class="nm">直近28日の1日平均</span>
+        <span class="vl" id="recDay"></span><span class="rt" id="recDayGap"></span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">直近30日（全店合計）</div>
+    <div class="bars" id="bars"></div>
+    <div class="barlab"><span id="b0"></span><span id="b1"></span></div>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <div class="lbl" id="mLbl">今月の着地</div>
+      <div class="mid num"><span id="mFc">—</span><span class="u">万</span></div>
+      <div class="note" id="mNote"></div>
+    </div>
+    <div class="card">
+      <div class="lbl">年間の着地（うまプロ）</div>
+      <div class="mid num"><span id="yFc">—</span><span class="u">億</span></div>
+      <div class="note" id="yNote"></div>
+    </div>
+  </div>
+
+  <button class="more" id="moreBtn">くわしく見る（MPS・月別・前提）</button>
+
+  <div id="detail">
+    <h2>年間の内訳</h2>
+    <div class="tw"><table id="tBreak"></table></div>
+
+    <h2>月別（全店売上と本部売上）</h2>
+    <div class="tw"><table id="tMonths"></table></div>
+
+    <h2>MPS 発注請求（月別・実績）</h2>
+    <div class="tw"><table id="tMps"></table></div>
+
+    <h2>店別の年間見込み</h2>
+    <div class="tw"><table id="tShops"></table></div>
+
+    <h2>前提</h2>
+    <div class="foot" id="assump"></div>
+  </div>
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const yen = (v) => Math.round(v).toLocaleString('ja-JP');
+const man = (v) => Math.round(v / 1e4).toLocaleString('ja-JP');
+const oku = (v) => (v / 1e8).toFixed(2);
+const KIND = { r38: '38%', r5: '5%', own: '直営' };
+
+async function decrypt(blob, pass) {
+  const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: b64(blob.salt), iterations: blob.iter, hash: 'SHA-256' },
+    km, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+  const out = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(blob.iv) }, key, b64(blob.data));
+  return JSON.parse(new TextDecoder().decode(out));
+}
+
+async function unlock(pass, quiet) {
+  const blob = await (await fetch('data/payload.json?_=' + Date.now())).json();
+  const d = await decrypt(blob, pass);
+  localStorage.setItem('umapro_pw', pass);
+  $('lock').style.display = 'none';
+  $('app').hidden = false;
+  render(d);
+}
+
+$('go').onclick = async () => {
+  $('err').textContent = '';
+  try { await unlock($('pw').value); }
+  catch { $('err').textContent = '合言葉が違います'; }
+};
+$('pw').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('go').click(); });
+$('moreBtn').onclick = () => {
+  const on = $('detail').classList.toggle('on');
+  $('moreBtn').textContent = on ? '閉じる' : 'くわしく見る（MPS・月別・前提）';
+  if (on) $('detail').scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
+function render(d) {
+  $('updated').textContent = d.generatedAt.replace('T', ' ').slice(5, 16) + ' 更新';
+  const md = d.yesterday.slice(5).replace('-', '/');
+  $('ydLbl').innerHTML = `${md}（${d.yesterdayDow}）の売上`
+    + (d.yesterdayTag ? `<span class="tag">${d.yesterdayTag}</span>` : '');
+  $('ydTotal').textContent = yen(d.yesterday_total);
+
+  const r = d.yesterday_expected ? d.yesterday_total / d.yesterday_expected : null;
+  if (r) {
+    const cls = r >= 1.03 ? 'up' : r <= 0.97 ? 'dn' : 'fl';
+    $('ydCmp').innerHTML = `いつもの${d.yesterdayDow}曜 ${yen(d.yesterday_expected)}円`
+      + `<span class="pill ${cls}">${r >= 1 ? '+' : ''}${((r - 1) * 100).toFixed(0)}%</span>`;
+  }
+
+  $('ydRows').innerHTML = d.yesterday_shops
+    .filter((s) => s.sales !== null)
+    .sort((a, b) => b.sales - a.sales)
+    .map((s) => {
+      const rr = s.ratio;
+      const cls = !rr ? 'fl' : rr >= 1.03 ? 'up' : rr <= 0.97 ? 'dn' : 'fl';
+      const col = cls === 'up' ? 'var(--good)' : cls === 'dn' ? 'var(--bad)' : 'var(--dim2)';
+      return `<div class="row"><span class="nm"><span class="kind k-${s.kind}">${KIND[s.kind]}</span>${s.name}</span>`
+        + `<span class="vl">${yen(s.sales)}</span>`
+        + `<span class="rt" style="color:${col}">${rr ? (rr >= 1 ? '+' : '') + ((rr - 1) * 100).toFixed(0) + '%' : ''}</span></div>`;
+    }).join('');
+
+  const mx = Math.max(...d.trend.map((t) => t.sales), 1);
+  $('bars').innerHTML = d.trend.map((t, i) => {
+    const we = ['土', '日'].includes(t.dow) ? ' we' : '';
+    const last = i === d.trend.length - 1 ? ' last' : '';
+    return `<i class="${we}${last}" style="height:${Math.max(2, t.sales / mx * 100)}%" title="${t.date} ${yen(t.sales)}"></i>`;
+  }).join('');
+  $('b0').textContent = d.trend[0].date.slice(5).replace('-', '/');
+  $('b1').textContent = d.trend[d.trend.length - 1].date.slice(5).replace('-', '/');
+
+  const m = d.month;
+  $('mLbl').textContent = `${+m.ym.slice(5)}月の着地（全店売上）`;
+  $('mFc').textContent = man(m.forecast);
+  const dd = `${m.days_done}/${m.days_in_month}日`;
+  const vs = m.prev ? `　前月比 ${(m.forecast / m.prev * 100).toFixed(0)}%` : '';
+  $('mNote').textContent = `実績 ${man(m.actual)}万（${dd}）${vs}`;
+
+  const y = d.year_view;
+  $('yFc').textContent = oku(y.umapro);
+  $('yNote').textContent = `本部 ${man(y.hq)}万 ＋ ウマチャ ${man(y.umacha)}万`;
+
+  const p = d.pace;
+  const card = $('paceCard');
+  card.classList.add(p.on_track ? 'ok' : 'ng');
+  $('paceGap').textContent = (p.on_track ? '+' : '−') + man(Math.abs(p.gap)) + '万';
+  $('paceWord').textContent = p.on_track ? '先行' : '遅れ';
+  $('paceSub').innerHTML = `今日までに必要 <b>${man(p.need_todate)}万</b>　実績 <b>${man(p.actual_todate)}万</b>`
+    + `<br><span style="color:var(--dim2)">5億に届くには全店で年 ${man(p.need_year_sales)}万（見込みは ${man(y.sales)}万）</span>`;
+
+  const pp = p.progress * 100;
+  $('pbar').style.width = Math.min(100, pp) + '%';
+  $('pL').textContent = `年初来 ${man(p.actual_todate)}万 / ${man(p.need_year_sales)}万`;
+  $('pR').textContent = `${pp.toFixed(0)}%（今日の目安 ${(p.frac_elapsed * 100).toFixed(0)}%）`;
+
+  $('restDays').textContent = p.rest_days;
+  $('needDay').textContent = yen(p.need_per_day);
+  $('recDay').textContent = yen(p.recent_per_day);
+  const g = p.per_day_gap;
+  $('recDayGap').textContent = (g >= 0 ? '+' : '−') + man(Math.abs(g)) + '万';
+  $('recDayGap').style.color = g >= 0 ? 'var(--good)' : 'var(--bad)';
+
+  $('tBreak').innerHTML = `<tr><th>項目</th><th>年間見込み</th></tr>`
+    + [['どてっぱん全12店の売上', y.sales],
+       ['　ロイヤリティ・業務委託・直営', y.royalty],
+       ['　MPS 発注請求', y.mps],
+       ['どてっぱん本部 売上', y.hq],
+       ['ウマチャ', y.umacha],
+       ['うまプロ 合計', y.umapro],
+       ['目標', y.target]]
+      .map(([a, v], i) => `<tr${i === 5 ? ' class="now"' : ''}><td>${a}</td><td>${man(v)}万</td></tr>`).join('');
+
+  $('tMonths').innerHTML = '<tr><th>月</th><th>全店売上</th><th>本部売上</th><th></th></tr>'
+    + d.months.map((x) => `<tr${x.ym === d.month.ym ? ' class="now"' : ''}>`
+      + `<td>${+x.ym.slice(5)}月</td><td>${man(x.sales_forecast)}</td><td>${man(x.hq)}</td>`
+      + `<td style="color:var(--dim2)">${x.done ? '実績' : x.ym === d.month.ym ? '進行中' : '予測'}</td></tr>`).join('');
+
+  $('tMps').innerHTML = '<tr><th>請求月</th><th>内部請求（税込）</th></tr>'
+    + d.detail.mps_months.slice(-14).reverse()
+      .map((x) => `<tr><td>${x.ym}</td><td>${man(x.internal)}万</td></tr>`).join('');
+
+  const last = d.months[d.months.length - 1];
+  $('tShops').innerHTML = '<tr><th>店舗</th><th>区分</th><th>年間見込み</th></tr>'
+    + Object.keys(d.shops).map((c) => {
+      const tot = d.months.reduce((a, x) => a + (x.shops[c]?.forecast || 0), 0);
+      return [c, tot];
+    }).sort((a, b) => b[1] - a[1])
+      .map(([c, tot]) => `<tr><td>${d.shops[c].name}</td>`
+        + `<td style="color:var(--dim)">${KIND[d.shops[c].kind]}</td><td>${man(tot)}万</td></tr>`).join('');
+
+  const adj = Object.entries(d.detail.adjustments)
+    .map(([c, a]) => `・${d.shops[c].name}：${a.why}（実質 ${(a.rate * 100).toFixed(0)}%）`).join('<br>');
+  const ratios = Object.entries(d.detail.mps_ratio)
+    .map(([c, v]) => `${d.shops[c].name} ${(v * 100).toFixed(0)}%`).join('　');
+  $('assump').innerHTML = [
+    `・売上はすべて<b>税込</b>。ダイニーは画面が税抜表示だがAPIの税込値を使っている`,
+    `・${d.detail.hike.why}。6月以前の実績は×${d.detail.hike.rate}して価格を揃えてから水準を推定`,
+    `・本部の取り分：38%店＝ロイヤリティ10%＋業務委託28%／5%店＝ロイヤリティのみ／前橋＝直営で売上全額`,
+    adj,
+    `・MPSは<b>前橋を除く11店</b>で集計（直営は本部が本部に請求する内部取引のため）`,
+    `・MPS比率（売上に対する内部請求）：${ratios}`,
+    `・今日ぶんはまだ入らない。前日までの実績＋残り日数の見込みで着地を出している`,
+  ].join('<br>');
+
+  $('foot').innerHTML = `ダイニー・blayn・MPS の実データ／毎朝9:05に自動更新<br>`
+    + `${d.year}年1月1日〜${d.yesterday} が実績、それ以降は予測`;
+}
+
+const saved = localStorage.getItem('umapro_pw');
+if (saved) unlock(saved, true).catch(() => { $('lock').style.display = 'flex'; });
+</script>
+</body>
+</html>
