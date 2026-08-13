@@ -18,9 +18,22 @@ const FROM = process.argv[2] ?? new Date(Date.now() + 9 * 3600 * 1000 - 45 * 864
 
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 
-const ctx = await chromium.launchPersistentContext(PROFILE, {
-  headless: true, viewport: { width: 1600, height: 1200 }, locale: 'ja-JP', timezoneId: 'Asia/Tokyo',
-});
+// blayn / MPS のセッションは閉じると消えるcookieなので、browser.mjs が写しておいた
+// .cache/state.json を読み込んで使う。無ければプロファイルだけで動く（ダイニーはそれで足りる）。
+const STATE = path.join(ROOT, '.cache', 'state.json');
+const hasState = await fs.access(STATE).then(() => true).catch(() => false);
+let browser = null, ctx;
+if (hasState) {
+  browser = await chromium.launch({ headless: true });
+  ctx = await browser.newContext({
+    storageState: STATE, viewport: { width: 1600, height: 1200 },
+    locale: 'ja-JP', timezoneId: 'Asia/Tokyo',
+  });
+} else {
+  ctx = await chromium.launchPersistentContext(PROFILE, {
+    headless: true, viewport: { width: 1600, height: 1200 }, locale: 'ja-JP', timezoneId: 'Asia/Tokyo',
+  });
+}
 const out = { fetchedAt: new Date().toISOString(), today, dinii: [], blayn: [], mps: [], errors: [] };
 
 try {
@@ -195,7 +208,10 @@ try {
   out.errors.push(`dinii: ${e.message}`);
   log(`  !! ${String(e.message).slice(0, 160)}`);
 } finally {
+  // 使ったあとのセッションを書き戻す。毎日つつくことで生き延びる可能性を上げる。
+  if (hasState) { try { await ctx.storageState({ path: STATE }); } catch { /* 無視 */ } }
   await ctx.close();
+  if (browser) await browser.close();
 }
 
 // 前回ぶんとマージする。今回取れた日付は今回の値で上書き、それ以外は前回を残す。

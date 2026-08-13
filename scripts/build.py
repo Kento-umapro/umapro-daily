@@ -309,7 +309,21 @@ cur = next(m for m in months_out if m['ym'] == CUR_YM)
 prev_ym = (TODAY.replace(day=1) - dt.timedelta(days=1)).strftime('%Y-%m')
 prev = next((m for m in months_out if m['ym'] == prev_ym), None)
 
+# データ源ごとの新しさ（なんばやMPSが古いままだと気づけるように）
+blayn_last = max((r['date'] for r in RAW.get('blayn', [])), default=None)
+dinii_last = max((r['date'] for r in RAW.get('dinii', [])), default=None)
+mps_last = max((r['ym'] for r in RAW.get('mps', [])), default=None)
+sources = [
+    {'name': 'ダイニー（11店）', 'last': dinii_last,
+     'stale': not dinii_last or dinii_last < yd},
+    {'name': 'blayn（なんば）', 'last': blayn_last,
+     'stale': not blayn_last or blayn_last < yd},
+    {'name': 'MPS（発注請求）', 'last': mps_last,
+     'stale': not mps_last or mps_last < (TODAY.replace(day=1) - dt.timedelta(days=1)).strftime('%Y-%m')},
+]
+
 payload = {
+    'sources': sources,
     'generatedAt': dt.datetime.now().isoformat(timespec='seconds'),
     'today': TODAY.isoformat(), 'yesterday': yd,
     'yesterdayDow': WD[YESTERDAY.weekday()],

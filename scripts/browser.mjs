@@ -17,9 +17,20 @@ const SITES = [
   ['MPS', 'https://multiweb.jp/web/Contents/UF/006/UF006-05.aspx', (u, t) => !/タイムアウト|ログイン/.test(t)],
 ];
 
+const STATE = path.join(ROOT, '.cache', 'state.json');
 const ctx = await chromium.launchPersistentContext(PROFILE, {
   headless: false, viewport: { width: 1440, height: 950 }, locale: 'ja-JP', timezoneId: 'Asia/Tokyo',
 });
+
+// blayn と MPS のセッションは「ブラウザを閉じたら消えるcookie」なので、
+// 開いているあいだに中身をファイルへ写しておく。取得側はこれを読み込む。
+let saving = true;
+const keep = (async () => {
+  while (saving) {
+    try { await ctx.storageState({ path: STATE }); } catch { /* 閉じた直後は無視 */ }
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+})();
 
 const pages = [];
 for (let i = 0; i < SITES.length; i++) {
@@ -41,12 +52,13 @@ console.log(`
 `);
 
 await new Promise((r) => ctx.on('close', r));
+saving = false;
+await keep;
 
-// 閉じたあと、同じプロファイルで開き直して本当にログインが残っているか見る
-const chk = await chromium.launchPersistentContext(PROFILE, {
-  headless: true, locale: 'ja-JP', timezoneId: 'Asia/Tokyo',
-});
-const cp = chk.pages()[0] ?? await chk.newPage();
+// 保存したセッションで開き直して、本当にログインが残っているか見る
+const br = await chromium.launch({ headless: true });
+const chk = await br.newContext({ storageState: STATE, locale: 'ja-JP', timezoneId: 'Asia/Tokyo' });
+const cp = await chk.newPage();
 const ok = {};
 for (const [name, url, isIn] of SITES) {
   await cp.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => {});
@@ -55,6 +67,7 @@ for (const [name, url, isIn] of SITES) {
   console.log(`  ${ok[name] ? '○ ログイン済み' : '× ログインできていません'} … ${name}`);
 }
 await chk.close();
+await br.close();
 
 const ng = Object.entries(ok).filter(([, v]) => !v).map(([k]) => k);
 if (ng.length) {

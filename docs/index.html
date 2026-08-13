@@ -181,6 +181,7 @@ tr.now td{color:var(--ember)}
     <div class="foot" id="assump"></div>
   </div>
 
+  <div class="foot" id="src"></div>
   <div class="foot" id="foot"></div>
 </div>
 
@@ -329,6 +330,13 @@ function render(d) {
     `・MPS比率（売上に対する内部請求）：${ratios}`,
     `・今日ぶんはまだ入らない。前日までの実績＋残り日数の見込みで着地を出している`,
   ].join('<br>');
+
+  const bad = d.sources.filter((s) => s.stale);
+  $('src').innerHTML = bad.length
+    ? `<span style="color:var(--bad)">■ データが古いものがあります</span><br>`
+      + bad.map((s) => `${s.name}：${s.last || '未取得'} まで`).join('<br>')
+      + `<br><span style="color:var(--dim2)">ログインが切れています。login.command を実行してください</span>`
+    : d.sources.map((s) => `${s.name}：${s.last} まで`).join('　');
 
   $('foot').innerHTML = `ダイニー・blayn・MPS の実データ／毎朝9:05に自動更新<br>`
     + `${d.year}年1月1日〜${d.yesterday} が実績、それ以降は予測`;
