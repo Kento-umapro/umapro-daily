@@ -322,6 +322,45 @@ pace = {
     'frac_elapsed': round(frac, 4),
 }
 
+# ── 10. 前日からの動き ───────────────────────────────────────
+# 毎回の計算結果を .cache/history.json に貯めて、前回（前日）との差を出す。
+HIST = os.path.join(ROOT, '.cache', 'history.json')
+try:
+    hist = json.load(open(HIST))
+except Exception:
+    hist = []
+
+snap = {
+    'date': TODAY.isoformat(),
+    'umapro': round(umapro),
+    'hq': round(year_hq),
+    'year_sales': round(year_sales),
+    'pace_gap': round(pace_gap),
+    'ytd_sales': round(ytd_sales),
+    'month_forecast': round(sum(m['sales_forecast'] for m in months_out if m['ym'] == CUR_YM)),
+}
+prev = next((h for h in sorted(hist, key=lambda x: x['date'], reverse=True)
+             if h['date'] < snap['date']), None)
+
+
+def diff(k):
+    return (snap[k] - prev[k]) if prev and k in prev else None
+
+
+delta = {
+    'since': prev['date'] if prev else None,
+    'umapro': diff('umapro'), 'hq': diff('hq'), 'year_sales': diff('year_sales'),
+    'pace_gap': diff('pace_gap'), 'month_forecast': diff('month_forecast'),
+    'ytd_sales': diff('ytd_sales'),
+}
+
+hist = [h for h in hist if h['date'] != snap['date']] + [snap]
+hist.sort(key=lambda x: x['date'])
+json.dump(hist[-400:], open(HIST, 'w'), ensure_ascii=False)
+
+# 直近の年間着地の推移（グラフ用）
+year_trend = [{'date': h['date'], 'umapro': h['umapro']} for h in hist[-30:]]
+
 cur = next(m for m in months_out if m['ym'] == CUR_YM)
 prev_ym = (TODAY.replace(day=1) - dt.timedelta(days=1)).strftime('%Y-%m')
 prev = next((m for m in months_out if m['ym'] == prev_ym), None)
@@ -371,6 +410,8 @@ payload = {
         'ytd_sales': round(ytd_sales), 'ytd_hq': round(ytd_hq),
     },
     'pace': pace,
+    'delta': delta,
+    'year_trend': year_trend,
     'months': months_out,
     'shops': {c: SHOPS[c] for c in SHOPS},
     'detail': {
@@ -401,3 +442,9 @@ print(f"{YEAR}年 全店売上 {man(year_sales)} / 本部 {man(year_hq)} / う�
 print(f"ペース 必要な年間全店売上 {man(need_year_sales)} / 今日までに必要 {man(need_todate)} / "
       f"実績 {man(ytd_sales)} → {'先行' if pace_gap >= 0 else '遅れ'} {man(abs(pace_gap))}")
 print(f"残り{rest_days}日 1日あたり必要 {man(need_per_day)} / 直近28日平均 {man(recent_per_day)}")
+if delta['umapro'] is not None:
+    sign = '+' if delta['umapro'] >= 0 else '−'
+    print(f"前日({delta['since']})から 年間着地 {sign}{man(abs(delta['umapro']))} / "
+          f"ペース {'+' if delta['pace_gap'] >= 0 else '−'}{man(abs(delta['pace_gap']))}")
+else:
+    print("前日比: 明日の実行から出ます（今日が1回目）")

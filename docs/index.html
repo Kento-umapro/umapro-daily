@@ -100,6 +100,9 @@ header .u{font-size:11px;color:var(--dim2);font-family:var(--m)}
 .mid{font-size:26px;font-weight:800;margin:4px 0 1px}
 .mid .u{font-size:.5em;font-weight:600;color:var(--dim);margin-left:3px}
 .note{font-size:11.5px;color:var(--dim2)}
+.dlt{font-family:var(--m);font-size:12.5px;font-weight:700;margin:1px 0 3px}
+.dlt.up{color:var(--good)} .dlt.dn{color:var(--bad)} .dlt.fl{color:var(--dim)}
+.dlt span{font-weight:400;color:var(--dim2);font-size:11px;margin-left:5px}
 
 .pace{border:1px solid var(--line)}
 .pace.ok{border-color:rgba(95,185,138,.45)}
@@ -160,6 +163,7 @@ tr.now td{color:var(--ember)}
       <span class="paceBig num" id="paceGap">—</span>
       <span class="paceWord" id="paceWord"></span>
     </div>
+    <div class="dlt" id="paceDelta"></div>
     <div class="sub" id="paceSub"></div>
     <div class="prog"><i id="pbar" style="width:0"></i></div>
     <div class="progrow"><span id="pL"></span><span id="pR"></span></div>
@@ -185,7 +189,8 @@ tr.now td{color:var(--ember)}
     </div>
     <div class="card">
       <div class="lbl">年間の着地（うまプロ）</div>
-      <div class="mid num"><span id="yFc">—</span><span class="u">億</span></div>
+      <div class="mid num"><span id="yFc">—</span><span class="u">億円</span></div>
+      <div class="dlt" id="yDelta"></div>
       <div class="note" id="yNote"></div>
     </div>
   </div>
@@ -317,13 +322,35 @@ function render(d) {
 
   const y = d.year_view;
   $('yFc').textContent = oku(y.umapro);
-  $('yNote').textContent = `本部 ${man(y.hq)}万 ＋ ウマチャ ${man(y.umacha)}万`;
+  $('yNote').textContent = `本部 ${man(y.hq)}万円 ＋ ウマチャ ${man(y.umacha)}万円`;
+
+  const dl = d.delta || {};
+  const el = $('yDelta');
+  if (dl.umapro === null || dl.umapro === undefined) {
+    el.className = 'dlt fl';
+    el.innerHTML = '前日比 <span>明日から出ます</span>';
+  } else {
+    const up = dl.umapro >= 0;
+    el.className = 'dlt ' + (dl.umapro === 0 ? 'fl' : up ? 'up' : 'dn');
+    el.innerHTML = `前日比 ${up ? '+' : '−'}${man(Math.abs(dl.umapro))}万円`;
+  }
 
   const p = d.pace;
   const card = $('paceCard');
   card.classList.add(p.on_track ? 'ok' : 'ng');
   $('paceGap').textContent = (p.on_track ? '+' : '−') + man(Math.abs(p.gap)) + '万';
   $('paceWord').textContent = p.on_track ? '先行' : '遅れ';
+  const pd = (d.delta || {}).pace_gap;
+  const pe = $('paceDelta');
+  if (pd === null || pd === undefined) {
+    pe.className = 'dlt fl';
+    pe.innerHTML = '前日比 <span>明日から出ます</span>';
+  } else {
+    pe.className = 'dlt ' + (pd === 0 ? 'fl' : pd > 0 ? 'up' : 'dn');
+    pe.innerHTML = pd === 0 ? '前日から変わらず'
+      : `前日より ${man(Math.abs(pd))}万円 ${pd > 0 ? '追いついた' : '広がった'}`;
+  }
+
   $('paceSub').innerHTML = `今日までに必要 <b>${man(p.need_todate)}万</b>　実績 <b>${man(p.actual_todate)}万</b>`
     + `<br><span style="color:var(--dim2)">5億に届くには全店で年 ${man(p.need_year_sales)}万（見込みは ${man(y.sales)}万）</span>`;
 
