@@ -6,6 +6,7 @@ import { chromium } from 'playwright';
 import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 
 const ROOT = path.join(os.homedir(), 'umapro-daily');
 const PROFILE = path.join(ROOT, '.profile');
@@ -17,6 +18,14 @@ const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 const FROM = process.argv[2] ?? new Date(Date.now() + 9 * 3600 * 1000 - 45 * 86400_000).toISOString().slice(0, 10);
 
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
+
+// キーチェーンからパスワードを読む。中身は絶対にログに出さない。
+function secret(service) {
+  try {
+    return execFileSync('security', ['find-generic-password', '-s', service, '-w'],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).replace(/\n$/, '');
+  } catch { return null; }
+}
 
 // blayn / MPS のセッションは閉じると消えるcookieなので、browser.mjs が写しておいた
 // .cache/state.json を読み込んで使う。無ければプロファイルだけで動く（ダイニーはそれで足りる）。
@@ -111,7 +120,25 @@ try {
   const bp = await ctx.newPage();
   await bp.goto(`https://secure.blayn.com/mng/account/switch?shop_id=${B.shop_id}`,
     { waitUntil: 'domcontentloaded', timeout: 60000 });
-  if (/account\/login/.test(bp.url())) throw new Error('blaynのログインが切れています → login.command');
+  if (/account\/login/.test(bp.url())) {
+    // セッションが切れている。キーチェーンにパスワードがあれば自分で入り直す
+    const id = CFG.blayn?.login_id;
+    const pw = id ? secret('umapro-blayn') : null;
+    if (!pw) throw new Error('blaynのログインが切れています → login.command か setup-login.command');
+    log('blayn 自動ログイン中…');
+    await bp.goto('https://secure.blayn.com/mng/account/login', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await bp.fill('input[name=login_nm]', id);
+    await bp.fill('input[name=login_pw]', pw);
+    await bp.check('input[name=save]').catch(() => {});
+    await Promise.all([
+      bp.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => {}),
+      bp.click('input[type=submit]'),
+    ]);
+    await bp.goto(`https://secure.blayn.com/mng/account/switch?shop_id=${B.shop_id}`,
+      { waitUntil: 'domcontentloaded', timeout: 60000 });
+    if (/account\/login/.test(bp.url())) throw new Error('blaynの自動ログインに失敗（IDかパスワードが違うかも）');
+    log('blayn ログインし直しました');
+  }
 
   const curYm = today.slice(0, 4) + today.slice(5, 7);
   await bp.goto(`https://secure.blayn.com/mng/sales/view?date=${curYm}`,
@@ -152,9 +179,30 @@ try {
 
   // ═══ MPS（発注の内部請求・月別／店別）═══════════════════
   try {
+  const CFG2 = JSON.parse(await fs.readFile(path.join(ROOT, 'config.json'), 'utf8'));
   const mp = await ctx.newPage();
-  await mp.goto('https://multiweb.jp/web/Contents/UF/006/UF006-05.aspx', { waitUntil: 'domcontentloaded', timeout: 60000 });
-  if (/CF\/001/.test(mp.url())) {
+  const MPS_URL = 'https://multiweb.jp/web/Contents/UF/006/UF006-05.aspx';
+  await mp.goto(MPS_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  let title = await mp.title();
+  if (/CF\/001/.test(mp.url()) || /タイムアウト|ログイン/.test(title)) {
+    const m = CFG2.mps ?? {};
+    const pw = m.account ? secret('umapro-mps') : null;
+    if (pw) {
+      log('MPS 自動ログイン中…');
+      await mp.goto('https://multiweb.jp/web/Contents/CF/001/CF001.aspx', { waitUntil: 'domcontentloaded', timeout: 60000 });
+      await mp.fill('input[name*=KigyoCodeTextBox]', m.kigyo_code ?? '');
+      await mp.fill('input[name*=AccountTextBox]', m.account);
+      await mp.fill('input[name*=PasswordTextBox]', pw);
+      await Promise.all([
+        mp.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => {}),
+        mp.click('input[name*=LoginButton]'),
+      ]);
+      await mp.goto(MPS_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      title = await mp.title();
+      log(/タイムアウト|ログイン/.test(title) ? 'MPS 自動ログインに失敗' : 'MPS ログインし直しました');
+    }
+  }
+  if (/CF\/001/.test(mp.url()) || /タイムアウト|ログイン/.test(await mp.title())) {
     log('  !! MPSのログインが切れています（MPSはスキップ。前回値を使います）');
   } else {
     const years = [...new Set([today.slice(0, 4), String(+today.slice(0, 4) - 1)])];
