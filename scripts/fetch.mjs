@@ -43,7 +43,7 @@ if (hasState) {
     headless: true, viewport: { width: 1600, height: 1200 }, locale: 'ja-JP', timezoneId: 'Asia/Tokyo',
   });
 }
-const out = { fetchedAt: new Date().toISOString(), today, dinii: [], blayn: [], mps: [], errors: [] };
+const out = { fetchedAt: new Date().toISOString(), today, dinii: [], blayn: [], mps: [], scores: [], errors: [] };
 
 try {
   // ═══ ダイニー ═══════════════════════════════════════════
@@ -70,9 +70,13 @@ try {
     query: 'query GetCompaniesAndShops { company(where: {archivedAt: {_is_null: true}}) { corporationId shops(where: {archivedAt: {_is_null: true}}) { name shopId } } }',
   });
   const shops = [];
-  for (const c of cs.company) for (const s of c.shops) {
-    const code = (s.name.match(/\d{6}/) ?? [])[0];
-    if (code && !s.name.includes('未使用')) shops.push({ code, shopId: s.shopId });
+  let corporationId = null;
+  for (const c of cs.company) {
+    corporationId = corporationId ?? c.corporationId;
+    for (const s of c.shops) {
+      const code = (s.name.match(/\d{6}/) ?? [])[0];
+      if (code && !s.name.includes('未使用')) shops.push({ code, shopId: s.shopId });
+    }
   }
   shops.sort((a, b) => a.code.localeCompare(b.code));
   log(`ダイニー ${shops.length}店 / ${FROM} 〜 ${today}`);
@@ -118,6 +122,52 @@ try {
     }
   }
   log(`ダイニー ${out.dinii.length}行`);
+
+  // ── アンケート（店舗スコア）前日ぶんだけ ──────────────────
+  // 再来店意欲 repeatability / 接客 customerService / 料理 deliciousness
+  // / 提供速度 speed / 清潔感 cleanliness
+  try {
+    // アンケートは1〜2日遅れて入るので、直近7日ぶんを取っておく。
+    // どの日を見せるかは build 側で決める（いちばん新しい「回答がある日」）。
+    const dayBefore = (n) => new Date(new Date(today + 'T12:00:00Z').getTime() - n * 86400_000)
+      .toISOString().slice(0, 10);
+    const days = Array.from({ length: 7 }, (_, i) => dayBefore(i + 1));
+    const SQ = `query Q($input: QuestionnaireScoreMetricsInput!) {
+      questionnaireScoreMetrics(input: $input) {
+        shopAverageScores {
+          shopId shopName answerCount
+          cleanliness { score } customerService { score }
+          deliciousness { score } repeatability { score } speed { score }
+        }
+      }
+    }`;
+    const byId = Object.fromEntries(shops.map((x) => [x.shopId, x.code]));
+    out.scores = [];
+    for (const day of days) {
+      const r = await gql({
+        operationName: 'Q',
+        variables: { input: { corporationId, shopIds: shops.map((x) => x.shopId), startAt: day, endAt: day } },
+        query: SQ,
+      });
+      for (const a of r.questionnaireScoreMetrics?.shopAverageScores ?? []) {
+        const code = byId[a.shopId];
+        if (!code || !a.answerCount) continue;
+        out.scores.push({
+          code, date: day, answers: a.answerCount,
+          repeat: a.repeatability?.score ?? null,
+          service: a.customerService?.score ?? null,
+          food: a.deliciousness?.score ?? null,
+          speed: a.speed?.score ?? null,
+          clean: a.cleanliness?.score ?? null,
+        });
+      }
+    }
+    const latest = out.scores.length ? out.scores.map((x) => x.date).sort().pop() : null;
+    log(`アンケート ${out.scores.length}件 / 直近で回答があるのは ${latest ?? 'なし'}`);
+  } catch (e) {
+    out.errors.push(`scores: ${e.message}`);
+    log(`  !! アンケート: ${String(e.message).slice(0, 110)}`);
+  }
 
   // ═══ blayn（なんば北心斎橋駅前店）═══════════════════════
   // ハマりどころ3つ:
@@ -217,7 +267,30 @@ try {
   } catch (e) { out.errors.push(`blayn: ${e.message}`); log(`  !! blayn: ${String(e.message).slice(0, 120)}`); }
 
   // ═══ MPS（発注の内部請求・月別／店別）═══════════════════
+  // MPSは8分かかるうえ月次のデータなので、毎日は取らない。
+  //   ・3日に1回
+  //   ・月初（1〜3日）は前月ぶんが確定するので必ず取る
+  //   ・初回（データが無い）は取る
+  //   SKIP_MPS=1 で飛ばす / MPS_FORCE=1 で必ず取る
   try {
+  if (process.env.SKIP_MPS) throw new Error('SKIP_MPS が指定されたので飛ばしました');
+  {
+    let prevMps = null, lastAt = null;
+    try {
+      const c = JSON.parse(await fs.readFile(path.join(ROOT, '.cache', 'raw.json'), 'utf8'));
+      prevMps = c.mps ?? [];
+      lastAt = c.mpsFetchedAt ?? null;
+    } catch { /* 初回 */ }
+    const days = lastAt ? (Date.now() - new Date(lastAt).getTime()) / 86400_000 : 999;
+    const dom = +today.slice(8, 10);
+    const need = process.env.MPS_FORCE || !prevMps?.length || days >= 3 || dom <= 3;
+    if (!need) {
+      out.mps = prevMps;
+      out.mpsFetchedAt = lastAt;
+      log(`MPS は前回のまま（${lastAt?.slice(0, 10)} 取得・あと${Math.ceil(3 - days)}日で取り直し）`);
+      throw new Error('__skip_mps__');
+    }
+  }
   const CFG2 = JSON.parse(await fs.readFile(path.join(ROOT, 'config.json'), 'utf8'));
   const mp = await ctx.newPage();
   const MPS_URL = 'https://multiweb.jp/web/Contents/UF/006/UF006-05.aspx';
@@ -308,9 +381,15 @@ try {
       return acc;
     }, years);
     out.mps = mps;
+    out.mpsFetchedAt = new Date().toISOString();
     log(`MPS ${out.mps.length}行`);
   }
-  } catch (e) { out.errors.push(`MPS: ${e.message}`); log(`  !! MPS: ${String(e.message).slice(0, 120)}`); }
+  } catch (e) {
+    if (e.message !== '__skip_mps__') {
+      out.errors.push(`MPS: ${e.message}`);
+      log(`  !! MPS: ${String(e.message).slice(0, 120)}`);
+    }
+  }
 } catch (e) {
   out.errors.push(`dinii: ${e.message}`);
   log(`  !! ${String(e.message).slice(0, 160)}`);
@@ -336,6 +415,7 @@ if (prev) {
   }
   if (!out.mps.length && prev.mps?.length) {
     out.mps = prev.mps;
+    out.mpsFetchedAt = out.mpsFetchedAt ?? prev.mpsFetchedAt ?? null;
     log(`mps は前回値を流用（${out.mps.length}行）`);
   }
 }

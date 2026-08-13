@@ -226,6 +226,10 @@ ytd_hq = sum(m['royalty_actual'] for m in months_out) + sum(
 
 # ── 8. 前日 ─────────────────────────────────────────────────
 yd = YESTERDAY.isoformat()
+# アンケートの店舗スコア。1〜2日遅れて入るので、回答がある直近の1日を使う
+_sc = RAW.get('scores', [])
+score_date = max((r['date'] for r in _sc if r.get('answers')), default=None)
+scores = {r['code']: r for r in _sc if r.get('date') == score_date}
 WD = '月火水木金土日'
 def usual(code, d, weeks=8):
     """いつものその曜日。直近8週の同じ曜日の実績の中央値（その日自身は除く）。"""
@@ -248,6 +252,26 @@ def day_tag(d):
     return None
 
 
+# 今月ここまでの累計（店別）
+mtd = {}
+for c in SHOPS:
+    inc = ex = pe = gr = 0
+    days_open = 0
+    for (cc, dd0), v in daily.items():
+        if cc != c or dd0[:7] != CUR_YM or dd0 > yd:
+            continue
+        d0 = detail.get((cc, dd0), {})
+        inc += v
+        ex += d0.get('excl', 0)
+        pe += d0.get('people', 0)
+        gr += d0.get('groups', 0)
+        days_open += 1
+    mtd[c] = {
+        'incl': round(inc), 'excl': round(ex), 'people': pe, 'groups': gr, 'days': days_open,
+        'per_person': round(ex / pe) if pe else None,
+        'per_group': round(ex / gr) if gr else None,
+    }
+
 yday_shops = []
 for c in SHOPS:
     v = daily.get((c, yd))
@@ -265,6 +289,8 @@ for c in SHOPS:
         'per_group': round(ex / groups) if (ex and groups) else None,
         'expected': round(exp) if exp else None,
         'ratio': (v / exp) if (v and exp) else None,
+        'mtd': mtd[c],
+        'score': scores.get(c),
     })
 yday_total = sum(s['sales'] or 0 for s in yday_shops)
 yday_excl = sum(s['excl'] or 0 for s in yday_shops if s['sales'] is not None)
@@ -394,6 +420,28 @@ payload = {
     'yesterday_per_person': round(yday_excl / yday_people) if yday_people else None,
     'yesterday_per_group': round(yday_excl / yday_groups) if yday_groups else None,
     'yesterday_open_shops': yday_open,
+    'score_date': score_date,
+    'score_total': ({
+        'repeat': round(statistics.mean([v['repeat'] for v in scores.values() if v.get('repeat') is not None])),
+        'service': round(statistics.mean([v['service'] for v in scores.values() if v.get('service') is not None])),
+        'food': round(statistics.mean([v['food'] for v in scores.values() if v.get('food') is not None])),
+        'speed': round(statistics.mean([v['speed'] for v in scores.values() if v.get('speed') is not None])),
+        'clean': round(statistics.mean([v['clean'] for v in scores.values() if v.get('clean') is not None])),
+        'answers': sum(v.get('answers', 0) for v in scores.values()),
+        'shops': len(scores),
+        'total': sum(round(statistics.mean([v[k] for v in scores.values() if v.get(k) is not None]))
+                     for k in ('repeat', 'service', 'food', 'speed', 'clean')),
+    } if scores else None),
+    'mtd_total': {
+        'incl': sum(m['incl'] for m in mtd.values()),
+        'excl': sum(m['excl'] for m in mtd.values()),
+        'people': sum(m['people'] for m in mtd.values()),
+        'groups': sum(m['groups'] for m in mtd.values()),
+        'per_person': (round(sum(m['excl'] for m in mtd.values()) / sum(m['people'] for m in mtd.values()))
+                       if sum(m['people'] for m in mtd.values()) else None),
+        'per_group': (round(sum(m['excl'] for m in mtd.values()) / sum(m['groups'] for m in mtd.values()))
+                      if sum(m['groups'] for m in mtd.values()) else None),
+    },
     'shop_count': len(SHOPS),
     'yesterday_expected': round(yday_exp),
     'yesterday_shops': yday_shops,

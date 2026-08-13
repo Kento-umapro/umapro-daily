@@ -64,12 +64,35 @@ header .u b{display:block;font-weight:400;color:var(--ember);opacity:.85;font-fa
 .facts .v{font-family:var(--m);font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;
   white-space:nowrap;letter-spacing:-.03em}
 @media (max-width:400px){ .facts .v{font-size:11.5px} }
+.scall{margin-top:10px;padding:8px 11px;background:var(--card2);border-radius:9px;
+  font-size:11.5px;color:var(--dim);display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.scall i{font-style:normal;font-size:10.5px;font-family:var(--m);background:var(--card);
+  border-radius:5px;padding:2px 6px;color:var(--ink);white-space:nowrap}
+.scall i b{font-weight:600;color:var(--dim2);font-family:var(--f);margin-right:3px;font-size:9.5px}
+.scall i.tot{background:rgba(224,122,60,.2);color:var(--ember);font-weight:700}
+.scall i.ans{background:transparent;color:var(--dim2)}
+.mtdall{margin-top:10px;padding:9px 11px;background:var(--card2);border-radius:9px;
+  font-size:12px;color:var(--dim)}
+.mtdall b{font-family:var(--m);font-size:14px;color:var(--ink)}
+.mtdall span{display:block;font-size:10.5px;color:var(--dim2);font-family:var(--m);margin-top:2px}
 .rowhead{display:flex;align-items:center;gap:8px;margin-top:16px;padding-bottom:6px;
   font-size:10.5px;color:var(--dim2)}
 .rowhead .a{flex:1}
 .rowhead .b{flex:none;text-align:right}
 .rowhead .c{width:46px;flex:none;text-align:right}
 .rows{margin-top:0;border-top:1px solid var(--line)}
+.row2{border-bottom:1px solid var(--line);padding-bottom:8px}
+.row2:last-child{border-bottom:0}
+.row2 .row{border-bottom:0;padding-bottom:2px}
+.mtd{display:block;font-size:10.5px;color:var(--dim2);font-family:var(--m);
+  padding:3px 0 0 28px;line-height:1.5}
+.mtd i{font-style:normal;margin-left:8px;white-space:nowrap;display:inline-block}
+.sc{display:flex;gap:3px;margin:3px 0 1px;flex-wrap:wrap}
+.sc i{font-style:normal;font-size:9.5px;font-family:var(--m);background:var(--card2);
+  border-radius:4px;padding:1px 4px;color:var(--ink);white-space:nowrap}
+.sc i.tot{background:rgba(224,122,60,.18);color:var(--ember);font-weight:700}
+.sc i b{font-weight:600;color:var(--dim2);font-family:var(--f);margin-right:3px;font-size:9.5px}
+.sc i.ans{background:transparent;color:var(--dim2)}
 .row .sub2{font-size:10.5px;color:var(--dim2);font-family:var(--m);display:block;line-height:1.5;
   white-space:normal}
 .row .sub2 i{font-style:normal;white-space:nowrap;margin-right:9px;display:inline-block}
@@ -240,6 +263,8 @@ const yen = (v) => Math.round(v).toLocaleString('ja-JP');
 const man = (v) => Math.round(v / 1e4).toLocaleString('ja-JP');
 const oku = (v) => (v / 1e8).toFixed(2);
 const KIND = { r38: '38%', r5: '5%', own: '直営' };
+const SCORE_KEYS = [['repeat', '再来店'], ['service', '接客'], ['food', '料理'],
+  ['speed', '提供'], ['clean', '清潔']];
 
 async function decrypt(blob, pass) {
   const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
@@ -294,6 +319,22 @@ function render(d) {
     ['客単価<span style="font-size:9px">税抜</span>', yen(d.yesterday_per_person || 0), '円'],
   ].map(([k, v, u]) => `<div><span class="k">${k}</span><span class="v">${v}<em>${u}</em></span></div>`).join('');
 
+  const sall = d.score_total;
+  if (sall) {
+    $('ydFacts').insertAdjacentHTML('afterend',
+      `<div class="scall">アンケート（${(d.score_date || '').slice(5).replace('-', '/')}）　`
+      + SCORE_KEYS.map(([k, lb]) => `<i><b>${lb}</b>${sall[k] ?? '—'}</i>`).join('')
+      + `<i class="tot">計${sall.total}</i><i class="ans">回答${sall.answers}件・${sall.shops}店</i></div>`);
+  }
+
+  const mt = d.mtd_total || {};
+  if (mt.incl) {
+    $('ydFacts').insertAdjacentHTML('afterend',
+      `<div class="mtdall">今月ここまで（全店）　<b>${man(mt.incl)}万円</b>`
+      + `<span>税抜 ${man(mt.excl)}万円　${mt.people.toLocaleString('ja-JP')}人　`
+      + `${mt.groups.toLocaleString('ja-JP')}組　客単価 ${yen(mt.per_person)}円（税抜）</span></div>`);
+  }
+
   $('ydHead').innerHTML = `<span class="a">順位・店舗（下段は客数／組数／客単価）</span>`
     + `<span class="b">売上　上:税込<br>下:税抜</span>`
     + `<span class="c">いつもの<br>${d.yesterdayDow}曜比</span>`;
@@ -312,12 +353,27 @@ function render(d) {
         s.groups ? `${s.groups}組` : '',
         s.per_person ? `客単価${yen(s.per_person)}円(税抜)` : '',
       ].filter(Boolean).map((t) => `<i>${t}</i>`).join('');
-      return `<div class="row"><span class="nm"><span class="${rcls}">${rank}</span>`
+      const m = s.mtd || {};
+      const mline = m.incl ? `<span class="mtd">今月 ${man(m.incl)}万円`
+        + `<i>${(m.people || 0).toLocaleString('ja-JP')}人</i>`
+        + `<i>${(m.groups || 0).toLocaleString('ja-JP')}組</i>`
+        + `<i>客単価${yen(m.per_person || 0)}円</i>`
+        + `<i>${m.days}日</i></span>` : '';
+      const sc = s.score;
+      const vals = sc ? SCORE_KEYS.map(([k]) => sc[k]).filter((x) => x != null) : [];
+      const scTotal = vals.length ? vals.reduce((a, b) => a + b, 0) : null;
+      const scInline = sc ? `<span class="sc">`
+        + SCORE_KEYS.map(([k, lb]) => `<i><b>${lb}</b>${sc[k] ?? '—'}</i>`).join('')
+        + (scTotal !== null ? `<i class="tot">計${scTotal}</i>` : '')
+        + `<i class="ans">回答${sc.answers}</i></span>` : '';
+      return `<div class="row2">`
+        + `<div class="row"><span class="nm"><span class="${rcls}">${rank}</span>`
         + `<span class="nmtx"><span class="nmm"><span class="kind k-${s.kind}">${KIND[s.kind]}</span>${s.name}</span>`
-        + `<span class="sub2">${sub}</span></span></span>`
+        + scInline + `<span class="sub2">${sub}</span></span></span>`
         + `<span class="vl">${yen(s.sales)}<em>円</em>`
         + (s.excl ? `<b>${yen(s.excl)}<em>円</em></b>` : '') + `</span>`
-        + `<span class="rt" style="color:${col}">${rr ? (rr >= 1 ? '+' : '') + ((rr - 1) * 100).toFixed(0) + '%' : ''}</span></div>`;
+        + `<span class="rt" style="color:${col}">${rr ? (rr >= 1 ? '+' : '') + ((rr - 1) * 100).toFixed(0) + '%' : ''}</span></div>`
+        + mline + `</div>`;
     }).join('');
 
   const mx = Math.max(...d.trend.map((t) => t.sales), 1);
