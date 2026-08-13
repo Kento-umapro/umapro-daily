@@ -99,7 +99,10 @@ header .u{font-size:11px;color:var(--dim2);font-family:var(--m)}
 .bars i.last{opacity:1}
 .barlab{display:flex;justify-content:space-between;font-size:10.5px;color:var(--dim2);font-family:var(--m)}
 
-.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card.float{border:1.5px solid var(--ember);background:linear-gradient(180deg,#232a31,#1d2228);
+  box-shadow:0 6px 18px rgba(0,0,0,.45), 0 0 0 4px rgba(224,122,60,.08)}
+.card.float .lbl{color:var(--ember)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
 .two .card{margin:0}
 .mid{font-size:26px;font-weight:800;margin:4px 0 1px}
 .mid .u{font-size:.5em;font-weight:600;color:var(--dim);margin-left:3px}
@@ -113,7 +116,7 @@ header .u{font-size:11px;color:var(--dim2);font-family:var(--m)}
 .pace.ng{border-color:rgba(224,112,95,.45)}
 .paceHead{display:flex;align-items:baseline;gap:8px;margin:6px 0 2px;flex-wrap:wrap}
 .paceBig{font-size:clamp(30px,9vw,40px);font-weight:800;line-height:1.1}
-.paceWord{font-size:15px;font-weight:700}
+.paceWord{font-size:13.5px;font-weight:700}
 .pace.ok .paceBig,.pace.ok .paceWord{color:var(--good)}
 .pace.ng .paceBig,.pace.ng .paceWord{color:var(--bad)}
 .prog{height:7px;background:var(--card2);border-radius:99px;overflow:hidden;margin:10px 0 7px}
@@ -163,7 +166,7 @@ tr.now td{color:var(--ember)}
   </div>
 
   <div class="card pace" id="paceCard">
-    <div class="lbl">5億達成のペース</div>
+    <div class="lbl">5億達成のペース（全店舗の売上ベース）</div>
     <div class="paceHead">
       <span class="paceBig num" id="paceGap">—</span>
       <span class="paceWord" id="paceWord"></span>
@@ -192,7 +195,7 @@ tr.now td{color:var(--ember)}
       <div class="mid num"><span id="mFc">—</span><span class="u">万</span></div>
       <div class="note" id="mNote"></div>
     </div>
-    <div class="card">
+    <div class="card float">
       <div class="lbl">年間の着地（うまプロ）</div>
       <div class="mid num"><span id="yFc">—</span><span class="u">億円</span></div>
       <div class="dlt" id="yDelta"></div>
@@ -343,8 +346,8 @@ function render(d) {
   const p = d.pace;
   const card = $('paceCard');
   card.classList.add(p.on_track ? 'ok' : 'ng');
-  $('paceGap').textContent = (p.on_track ? '+' : '−') + man(Math.abs(p.gap)) + '万';
-  $('paceWord').textContent = p.on_track ? '先行' : '遅れ';
+  $('paceGap').textContent = (p.on_track ? '+' : '−') + man(Math.abs(p.gap)) + '万円';
+  $('paceWord').textContent = (p.on_track ? '先行' : '遅れ') + '（全店舗の売上）';
   const pd = (d.delta || {}).pace_gap;
   const pe = $('paceDelta');
   if (pd === null || pd === undefined) {
@@ -356,12 +359,14 @@ function render(d) {
       : `前日より ${man(Math.abs(pd))}万円 ${pd > 0 ? '追いついた' : '広がった'}`;
   }
 
-  $('paceSub').innerHTML = `今日までに必要 <b>${man(p.need_todate)}万</b>　実績 <b>${man(p.actual_todate)}万</b>`
-    + `<br><span style="color:var(--dim2)">5億に届くには全店で年 ${man(p.need_year_sales)}万（見込みは ${man(y.sales)}万）</span>`;
+  $('paceSub').innerHTML = `全店舗の売上　今日までに必要 <b>${man(p.need_todate)}万円</b>`
+    + `　実績 <b>${man(p.actual_todate)}万円</b>`
+    + `<br><span style="color:var(--dim2)">5億に届くには全店舗の売上が年 ${man(p.need_year_sales)}万円 必要`
+    + `（いまの見込みは ${man(y.sales)}万円）</span>`;
 
   const pp = p.progress * 100;
   $('pbar').style.width = Math.min(100, pp) + '%';
-  $('pL').textContent = `年初来 ${man(p.actual_todate)}万 / ${man(p.need_year_sales)}万`;
+  $('pL').textContent = `年初来 ${man(p.actual_todate)}万円 / ${man(p.need_year_sales)}万円`;
   $('pR').textContent = `${pp.toFixed(0)}%（今日の目安 ${(p.frac_elapsed * 100).toFixed(0)}%）`;
 
   $('restDays').textContent = p.rest_days;
