@@ -154,7 +154,7 @@ tr.now td{color:var(--ember)}
 <div class="wrap" id="app" hidden>
   <header>
     <div class="t">うまプロ 売上</div>
-    <div class="u"><span id="updated"></span><b>毎朝9:05ごろ更新</b></div>
+    <div class="u"><span id="updated"></span><b>毎朝9:10ごろ更新</b></div>
   </header>
 
   <div class="card hero">
@@ -427,7 +427,7 @@ function render(d) {
       + `<br><span style="color:var(--dim2)">ログインが切れています。login.command を実行してください</span>`
     : d.sources.map((s) => `${s.name}：${s.last} まで`).join('　');
 
-  $('foot').innerHTML = `ダイニー・blayn・MPS の実データ／毎朝9:05に自動更新<br>`
+  $('foot').innerHTML = `ダイニー・blayn・MPS の実データ／毎朝9:10に自動更新<br>`
     + `${d.year}年1月1日〜${d.yesterday} が実績、それ以降は予測`;
 }
 

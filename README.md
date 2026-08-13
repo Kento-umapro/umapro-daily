@@ -17,7 +17,7 @@ POS(日別) ├→ .cache/raw.json → build.py → .cache/payload.json → encr
 
 ## 毎朝の自動更新
 
-`~/Library/LaunchAgents/com.umapro.daily.plist` が毎朝 **9:05** に `run.sh` を叩く。
+`~/Library/LaunchAgents/com.umapro.daily.plist` が毎朝 **9:10** に `run.sh` を叩く。
 専用のブラウザプロファイル `.profile` を使うので、他の朝のジョブとぶつからない。
 
 ```bash
