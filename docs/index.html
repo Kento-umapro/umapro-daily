@@ -99,6 +99,11 @@ header .u b{display:block;font-weight:400;color:var(--ember);opacity:.85;font-fa
 .bars i{flex:1;background:var(--steel);opacity:.5;border-radius:2px 2px 0 0;min-height:2px}
 .bars i.we{background:var(--ember);opacity:.75}
 .bars i.last{opacity:1}
+.bars i.hol{background:var(--ember);opacity:.9}
+.dows{display:flex;gap:2px;margin:3px 0 5px}
+.dows i{flex:1;font-style:normal;font-size:9px;text-align:center;color:var(--dim2);
+  font-family:var(--f);line-height:1.2;letter-spacing:-.05em}
+.dows i.sat{color:var(--steel)} .dows i.sun{color:var(--bad)} .dows i.hol{color:var(--ember);font-weight:700}
 .barlab{display:flex;justify-content:space-between;font-size:10.5px;color:var(--dim2);font-family:var(--m)}
 
 .card.float{border:1.5px solid var(--ember);background:linear-gradient(180deg,#232a31,#1d2228);
@@ -188,17 +193,18 @@ tr.now td{color:var(--ember)}
   <div class="card">
     <div class="lbl">直近30日（全店合計）</div>
     <div class="bars" id="bars"></div>
+    <div class="dows" id="dows"></div>
     <div class="barlab"><span id="b0"></span><span id="b1"></span></div>
   </div>
 
   <div class="two">
     <div class="card">
-      <div class="lbl" id="mLbl">今月の着地</div>
+      <div class="lbl" id="mLbl">今月の着地予定</div>
       <div class="mid num"><span id="mFc">—</span><span class="u">万</span></div>
       <div class="note" id="mNote"></div>
     </div>
     <div class="card float">
-      <div class="lbl">年間の着地（うまプロ）</div>
+      <div class="lbl">年間の着地予定（うまプロ）</div>
       <div class="mid num"><span id="yFc">—</span><span class="u">億円</span></div>
       <div class="dlt" id="yDelta"></div>
       <div class="note" id="yNote"></div>
@@ -316,15 +322,22 @@ function render(d) {
 
   const mx = Math.max(...d.trend.map((t) => t.sales), 1);
   $('bars').innerHTML = d.trend.map((t, i) => {
-    const we = ['土', '日'].includes(t.dow) ? ' we' : '';
+    const holiday = t.tag && t.tag !== 'お盆';
+    const we = holiday ? ' hol' : ['土', '日'].includes(t.dow) ? ' we' : '';
     const last = i === d.trend.length - 1 ? ' last' : '';
-    return `<i class="${we}${last}" style="height:${Math.max(2, t.sales / mx * 100)}%" title="${t.date} ${yen(t.sales)}"></i>`;
+    return `<i class="${we}${last}" style="height:${Math.max(2, t.sales / mx * 100)}%" `
+      + `title="${t.date}（${t.dow}）${t.tag ? t.tag + ' ' : ''}${yen(t.sales)}円"></i>`;
+  }).join('');
+  $('dows').innerHTML = d.trend.map((t) => {
+    const holiday = t.tag && t.tag !== 'お盆';
+    const cls = holiday ? 'hol' : t.dow === '土' ? 'sat' : t.dow === '日' ? 'sun' : '';
+    return `<i class="${cls}">${holiday ? '祝' : t.dow}</i>`;
   }).join('');
   $('b0').textContent = d.trend[0].date.slice(5).replace('-', '/');
   $('b1').textContent = d.trend[d.trend.length - 1].date.slice(5).replace('-', '/');
 
   const m = d.month;
-  $('mLbl').textContent = `${+m.ym.slice(5)}月の着地（全店売上）`;
+  $('mLbl').textContent = `${+m.ym.slice(5)}月の着地予定（全店売上）`;
   $('mFc').textContent = man(m.forecast);
   const dd = `${m.days_done}/${m.days_in_month}日`;
   const vs = m.prev ? `　前月比 ${(m.forecast / m.prev * 100).toFixed(0)}%` : '';
