@@ -275,7 +275,7 @@ function render(d) {
     ['税抜', yen(d.yesterday_excl), '円'],
     ['客数', (d.yesterday_people || 0).toLocaleString('ja-JP'), '人'],
     ['組数', (d.yesterday_groups || 0).toLocaleString('ja-JP'), '組'],
-    ['客単価', yen(d.yesterday_per_person || 0), '円'],
+    ['客単価<span style="font-size:9px">税抜</span>', yen(d.yesterday_per_person || 0), '円'],
   ].map(([k, v, u]) => `<div><span class="k">${k}</span><span class="v">${v}<em>${u}</em></span></div>`).join('');
 
   $('ydHead').innerHTML = `<span class="a">順位・店舗（下段は税抜／客数／組数／客単価）</span>`
@@ -295,7 +295,7 @@ function render(d) {
         s.excl ? `税抜${yen(s.excl)}円` : '',
         s.people ? `${s.people}人` : '',
         s.groups ? `${s.groups}組` : '',
-        s.per_person ? `客単価${yen(s.per_person)}円` : '',
+        s.per_person ? `客単価${yen(s.per_person)}円(税抜)` : '',
       ].filter(Boolean).map((t) => `<i>${t}</i>`).join('');
       return `<div class="row"><span class="nm"><span class="${rcls}">${rank}</span>`
         + `<span class="nmtx"><span class="nmm"><span class="kind k-${s.kind}">${KIND[s.kind]}</span>${s.name}</span>`

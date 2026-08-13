@@ -254,13 +254,15 @@ for c in SHOPS:
     exp = usual(c, YESTERDAY)
     dd = detail.get((c, yd), {})
     people, groups = dd.get('people', 0), dd.get('groups', 0)
+    ex = dd.get('excl') or 0
     yday_shops.append({
         'code': c, 'name': SHOPS[c]['name'], 'kind': SHOPS[c]['kind'],
         'sales': None if v is None else round(v),
         'excl': dd.get('excl'),
         'people': people, 'groups': groups,
-        'per_person': round(v / people) if (v and people) else None,
-        'per_group': round(v / groups) if (v and groups) else None,
+        # 客単価は税抜ベース
+        'per_person': round(ex / people) if (ex and people) else None,
+        'per_group': round(ex / groups) if (ex and groups) else None,
         'expected': round(exp) if exp else None,
         'ratio': (v / exp) if (v and exp) else None,
     })
@@ -389,8 +391,8 @@ payload = {
     'yesterday_excl': round(yday_excl),
     'yesterday_people': yday_people,
     'yesterday_groups': yday_groups,
-    'yesterday_per_person': round(yday_total / yday_people) if yday_people else None,
-    'yesterday_per_group': round(yday_total / yday_groups) if yday_groups else None,
+    'yesterday_per_person': round(yday_excl / yday_people) if yday_people else None,
+    'yesterday_per_group': round(yday_excl / yday_groups) if yday_groups else None,
     'yesterday_open_shops': yday_open,
     'shop_count': len(SHOPS),
     'yesterday_expected': round(yday_exp),
