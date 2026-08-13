@@ -77,9 +77,10 @@ try {
   shops.sort((a, b) => a.code.localeCompare(b.code));
   log(`ダイニー ${shops.length}店 / ${FROM} 〜 ${today}`);
 
-  const Q = `query GetShopDailyDetailedMetrics($shopId: String!, $from: DateTime!, $to: DateTime!, $shouldUseDemoData: Boolean) {
-    shopDailyDetailedMetrics(input: {shopId: $shopId, from: $from, to: $to, shouldUseDemoData: $shouldUseDemoData}) {
-      dailyMetrics { businessDate totalTaxIncludedAmount }
+  // 日別に 税込・税抜・客数・組数 をまとめて返してくれるのはこれ（経営管理＞売上分析）
+  const Q = `query SalesAnalytics($input: SalesAnalyticsInput!) {
+    salesAnalytics(input: $input) {
+      rows { name totalTaxIncludedAmount totalTaxExcludedAmount numPeople groupCount }
     }
   }`;
   const months = [];
@@ -92,17 +93,26 @@ try {
     for (const [a, b] of months) {
       try {
         const r = await gql({
-          operationName: 'GetShopDailyDetailedMetrics',
+          operationName: 'SalesAnalytics',
           variables: {
-            shopId: s.shopId, shouldUseDemoData: false,
-            from: new Date(a + 'T00:00:00+09:00').toISOString(),
-            to: new Date(b + 'T23:59:59+09:00').toISOString(),
+            input: {
+              shopIds: [s.shopId], startAt: a, endAt: b,
+              reportingType: 'day', businessOperationHourTypes: [], shouldUseDemoData: false,
+            },
           },
           query: Q,
         });
-        for (const m of r.shopDailyDetailedMetrics?.dailyMetrics ?? []) {
+        for (const m of r.salesAnalytics?.rows ?? []) {
           if (m.totalTaxIncludedAmount == null) continue;
-          out.dinii.push({ code: s.code, date: m.businessDate, sales: Math.round(m.totalTaxIncludedAmount) });
+          const date = (m.name || '').slice(0, 10);
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+          out.dinii.push({
+            code: s.code, date,
+            sales: Math.round(m.totalTaxIncludedAmount),
+            excl: Math.round(m.totalTaxExcludedAmount ?? 0),
+            people: m.numPeople ?? 0,
+            groups: m.groupCount ?? 0,
+          });
         }
       } catch (e) { log(`  !! ${s.code} ${a}: ${String(e.message).slice(0, 90)}`); }
     }
@@ -154,25 +164,54 @@ try {
   for (const t = new Date(FROM + 'T00:00:00'); t <= new Date(today + 'T00:00:00'); t.setMonth(t.getMonth() + 1)) {
     ymList.push([t.getFullYear(), t.getMonth() + 1]);
   }
-  for (const [y, m] of ymList) {
-    const rows = await bp.evaluate(async ({ y, m }) => {
-      const res = await fetch(`/mng/sales/view?date=${y}${String(m).padStart(2, '0')}`, { credentials: 'include' });
-      const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
-      const acc = [];
-      for (const tr of doc.querySelectorAll('table tr')) {
-        const c = [...tr.children].map((x) => x.textContent.trim());
-        const d = /^(\d{1,2})\/(\d{1,2})/.exec(c[0] || '');
-        if (!d) continue;
-        const v = parseInt((c[2] || '0').replace(/,/g, ''), 10);
-        if (Number.isFinite(v)) acc.push({ mm: +d[1], dd: +d[2], sales: v });
-      }
-      return acc;
-    }, { y, m });
-    for (const r of rows) {
-      if (r.mm !== m || r.sales <= 0) continue;
-      const date = `${y}-${String(m).padStart(2, '0')}-${String(r.dd).padStart(2, '0')}`;
-      if (date <= today) out.blayn.push({ code: B.code, date, sales: r.sales });
+
+  // 列は月によって増減する（現金値引などが入る）ので、見出しの名前で位置を探す
+  const grab = async (y, m) => bp.evaluate(async ({ y, m }) => {
+    const res = await fetch(`/mng/sales/view?date=${y}${String(m).padStart(2, '0')}`, { credentials: 'include' });
+    const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+    const trs = [...doc.querySelectorAll('table tr')];
+    if (!trs.length) return [];
+    const head = [...trs[0].children].map((x) => x.textContent.trim());
+    const at = (name) => head.findIndex((h) => h === name);
+    const iSales = at('売上高'), iGroups = at('取引数'), iPeople = at('客数');
+    const acc = [];
+    for (const tr of trs) {
+      const c = [...tr.children].map((x) => x.textContent.trim());
+      const d = /^(\d{1,2})\/(\d{1,2})/.exec(c[0] || '');
+      if (!d) continue;
+      const num = (i) => (i >= 0 ? parseInt((c[i] || '0').replace(/,/g, ''), 10) || 0 : 0);
+      acc.push({ mm: +d[1], dd: +d[2], sales: num(iSales), groups: num(iGroups), people: num(iPeople) });
     }
+    return acc;
+  }, { y, m });
+
+  const incl = new Map(), excl = new Map();
+  for (const [y, m] of ymList) {
+    for (const r of await grab(y, m)) {
+      if (r.mm !== m || r.sales <= 0) continue;
+      incl.set(`${y}-${String(m).padStart(2, '0')}-${String(r.dd).padStart(2, '0')}`, r);
+    }
+  }
+  // 税抜のほうも取る（トグルを戻す）
+  await bp.evaluate(() => document.querySelector('#tax_out')?.click());
+  await bp.waitForTimeout(3500);
+  if ((await mode()) === '税抜') {
+    for (const [y, m] of ymList) {
+      for (const r of await grab(y, m)) {
+        if (r.mm !== m || r.sales <= 0) continue;
+        excl.set(`${y}-${String(m).padStart(2, '0')}-${String(r.dd).padStart(2, '0')}`, r);
+      }
+    }
+  }
+  await bp.evaluate(() => document.querySelector('#tax_in')?.click()).catch(() => {});
+
+  for (const [date, r] of incl) {
+    if (date > today) continue;
+    out.blayn.push({
+      code: B.code, date, sales: r.sales,
+      excl: excl.get(date)?.sales ?? Math.round(r.sales / 1.1),
+      people: r.people, groups: r.groups,
+    });
   }
   log(`blayn ${out.blayn.length}行`);
   } catch (e) { out.errors.push(`blayn: ${e.message}`); log(`  !! blayn: ${String(e.message).slice(0, 120)}`); }

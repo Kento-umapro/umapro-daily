@@ -29,10 +29,17 @@ TARGET = CFG['target_yearly']
 ADJ = CFG['royalty_adjustments']           # 今年もらえていない分
 
 # ── 1. 日次売上（税込）────────────────────────────────────────
-daily = {}                                  # (code, 'YYYY-MM-DD') -> 円
+daily = {}                                  # (code, 'YYYY-MM-DD') -> 税込の円
+detail = {}                                 # (code, 'YYYY-MM-DD') -> 税込/税抜/客数/組数
 for r in RAW['dinii'] + RAW['blayn']:
     if r['code'] in SHOPS and r['sales'] > 0:
         daily[(r['code'], r['date'])] = r['sales']
+        detail[(r['code'], r['date'])] = {
+            'incl': r['sales'],
+            'excl': r.get('excl') or round(r['sales'] / 1.1),
+            'people': r.get('people') or 0,
+            'groups': r.get('groups') or 0,
+        }
 
 dates = sorted({d for (_, d) in daily})
 monthly = collections.defaultdict(int)      # (code, 'YYYY-MM') -> 円
@@ -245,14 +252,24 @@ yday_shops = []
 for c in SHOPS:
     v = daily.get((c, yd))
     exp = usual(c, YESTERDAY)
+    dd = detail.get((c, yd), {})
+    people, groups = dd.get('people', 0), dd.get('groups', 0)
     yday_shops.append({
         'code': c, 'name': SHOPS[c]['name'], 'kind': SHOPS[c]['kind'],
         'sales': None if v is None else round(v),
+        'excl': dd.get('excl'),
+        'people': people, 'groups': groups,
+        'per_person': round(v / people) if (v and people) else None,
+        'per_group': round(v / groups) if (v and groups) else None,
         'expected': round(exp) if exp else None,
         'ratio': (v / exp) if (v and exp) else None,
     })
 yday_total = sum(s['sales'] or 0 for s in yday_shops)
+yday_excl = sum(s['excl'] or 0 for s in yday_shops if s['sales'] is not None)
+yday_people = sum(s['people'] for s in yday_shops if s['sales'] is not None)
+yday_groups = sum(s['groups'] for s in yday_shops if s['sales'] is not None)
 yday_exp = sum(s['expected'] or 0 for s in yday_shops if s['sales'] is not None)
+yday_open = sum(1 for s in yday_shops if s['sales'] is not None)
 
 # 直近30日の推移（全店合計）
 trend = []
@@ -330,6 +347,13 @@ payload = {
     'yesterdayTag': day_tag(YESTERDAY),
     'year': YEAR,
     'yesterday_total': round(yday_total),
+    'yesterday_excl': round(yday_excl),
+    'yesterday_people': yday_people,
+    'yesterday_groups': yday_groups,
+    'yesterday_per_person': round(yday_total / yday_people) if yday_people else None,
+    'yesterday_per_group': round(yday_total / yday_groups) if yday_groups else None,
+    'yesterday_open_shops': yday_open,
+    'shop_count': len(SHOPS),
     'yesterday_expected': round(yday_exp),
     'yesterday_shops': yday_shops,
     'trend': trend,
