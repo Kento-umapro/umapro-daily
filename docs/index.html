@@ -42,6 +42,9 @@ header .u{font-size:11px;color:var(--dim2);font-family:var(--m)}
 .card .lbl{font-size:12px;color:var(--dim);font-weight:600;letter-spacing:.04em}
 .hero .big{font-size:clamp(38px,12vw,52px);font-weight:800;line-height:1.05;margin:6px 0 2px}
 .hero .big .u{font-size:.4em;font-weight:600;color:var(--dim);margin-left:4px}
+.hero .big2{font-size:clamp(20px,6vw,26px);font-weight:700;line-height:1.15;color:var(--dim);
+  margin:0 0 6px}
+.hero .big2 .u{font-size:.55em;font-weight:500;color:var(--dim2);margin-left:3px}
 .hero .sub{font-size:13px;color:var(--dim)}
 .pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;
   font-weight:700;font-family:var(--m);margin-left:8px;vertical-align:2px}
@@ -51,7 +54,7 @@ header .u{font-size:11px;color:var(--dim2);font-family:var(--m)}
 .tag{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:99px;font-size:11px;
   font-weight:700;background:rgba(224,122,60,.18);color:var(--ember)}
 
-.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin-top:14px;
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;margin-top:14px;
   background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .facts div{background:var(--card);padding:8px 3px;text-align:center}
 .facts .k{font-size:10px;color:var(--dim2);display:block;margin-bottom:1px}
@@ -73,7 +76,8 @@ header .u{font-size:11px;color:var(--dim2);font-family:var(--m)}
 .row:last-child{border-bottom:0}
 .row .nm{flex:1;font-size:13.5px;min-width:0}
 .row .vl em{font-style:normal;font-size:10px;color:var(--dim2);margin-left:1px;font-weight:400}
-.row .vl{font-family:var(--m);font-size:13.5px;flex:none;font-weight:700;font-variant-numeric:tabular-nums}
+.row .vl b{display:block;font-weight:700;color:var(--dim);margin-top:1px}
+.row .vl{font-family:var(--m);font-size:13.5px;flex:none;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
 .row .rt{font-family:var(--m);font-size:11px;width:46px;flex:none;text-align:right}
 .rank{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
   flex:none;margin-right:8px;border-radius:6px;font-family:var(--m);font-size:11px;font-weight:700;
@@ -151,6 +155,7 @@ tr.now td{color:var(--ember)}
   <div class="card hero">
     <div class="lbl" id="ydLbl">昨日の売上</div>
     <div class="big num"><span id="ydTotal">—</span><span class="u">円</span></div>
+    <div class="big2 num"><span id="ydTotalEx">—</span><span class="u">円（税抜）</span></div>
     <div class="sub"><span id="ydCmp"></span></div>
     <div class="facts" id="ydFacts"></div>
     <div class="rowhead" id="ydHead"></div>
@@ -263,6 +268,7 @@ function render(d) {
     + `<span style="color:var(--dim2)">${d.yesterday_open_shops}/${d.shop_count}店</span>`
     + (d.yesterdayTag ? `<span class="tag">${d.yesterdayTag}</span>` : '');
   $('ydTotal').textContent = yen(d.yesterday_total);
+  $('ydTotalEx').textContent = yen(d.yesterday_excl);
 
   const r = d.yesterday_expected ? d.yesterday_total / d.yesterday_expected : null;
   if (r) {
@@ -272,7 +278,6 @@ function render(d) {
   }
 
   $('ydFacts').innerHTML = [
-    ['税抜', yen(d.yesterday_excl), '円'],
     ['客数', (d.yesterday_people || 0).toLocaleString('ja-JP'), '人'],
     ['組数', (d.yesterday_groups || 0).toLocaleString('ja-JP'), '組'],
     ['客単価<span style="font-size:9px">税抜</span>', yen(d.yesterday_per_person || 0), '円'],
@@ -292,7 +297,6 @@ function render(d) {
       const cls = !rr ? 'fl' : rr >= 1.03 ? 'up' : rr <= 0.97 ? 'dn' : 'fl';
       const col = cls === 'up' ? 'var(--good)' : cls === 'dn' ? 'var(--bad)' : 'var(--dim2)';
       const sub = [
-        s.excl ? `税抜${yen(s.excl)}円` : '',
         s.people ? `${s.people}人` : '',
         s.groups ? `${s.groups}組` : '',
         s.per_person ? `客単価${yen(s.per_person)}円(税抜)` : '',
@@ -300,7 +304,8 @@ function render(d) {
       return `<div class="row"><span class="nm"><span class="${rcls}">${rank}</span>`
         + `<span class="nmtx"><span class="nmm"><span class="kind k-${s.kind}">${KIND[s.kind]}</span>${s.name}</span>`
         + `<span class="sub2">${sub}</span></span></span>`
-        + `<span class="vl">${yen(s.sales)}<em>円</em></span>`
+        + `<span class="vl">${yen(s.sales)}<em>円</em>`
+        + (s.excl ? `<b>${yen(s.excl)}<em>円</em></b>` : '') + `</span>`
         + `<span class="rt" style="color:${col}">${rr ? (rr >= 1 ? '+' : '') + ((rr - 1) * 100).toFixed(0) + '%' : ''}</span></div>`;
     }).join('');
 
