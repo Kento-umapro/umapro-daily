@@ -55,10 +55,16 @@ header .u{font-size:11px;color:var(--dim2);font-family:var(--m)}
   background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .facts div{background:var(--card);padding:8px 3px;text-align:center}
 .facts .k{font-size:10px;color:var(--dim2);display:block;margin-bottom:1px}
+.facts .v em{font-style:normal;font-size:9.5px;color:var(--dim2);margin-left:1px;font-weight:400}
 .facts .v{font-family:var(--m);font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;
   white-space:nowrap;letter-spacing:-.03em}
 @media (max-width:400px){ .facts .v{font-size:11.5px} }
-.rows{margin-top:14px;border-top:1px solid var(--line)}
+.rowhead{display:flex;align-items:center;gap:8px;margin-top:16px;padding-bottom:6px;
+  font-size:10.5px;color:var(--dim2)}
+.rowhead .a{flex:1}
+.rowhead .b{flex:none;text-align:right}
+.rowhead .c{width:46px;flex:none;text-align:right}
+.rows{margin-top:0;border-top:1px solid var(--line)}
 .row .sub2{font-size:10.5px;color:var(--dim2);font-family:var(--m);display:block;line-height:1.5;
   white-space:normal}
 .row .sub2 i{font-style:normal;white-space:nowrap;margin-right:9px;display:inline-block}
@@ -66,6 +72,7 @@ header .u{font-size:11px;color:var(--dim2);font-family:var(--m)}
 .row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}
 .row:last-child{border-bottom:0}
 .row .nm{flex:1;font-size:13.5px;min-width:0}
+.row .vl em{font-style:normal;font-size:10px;color:var(--dim2);margin-left:1px;font-weight:400}
 .row .vl{font-family:var(--m);font-size:13.5px;flex:none;font-weight:700;font-variant-numeric:tabular-nums}
 .row .rt{font-family:var(--m);font-size:11px;width:46px;flex:none;text-align:right}
 .rank{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
@@ -143,6 +150,7 @@ tr.now td{color:var(--ember)}
     <div class="big num"><span id="ydTotal">—</span><span class="u">円</span></div>
     <div class="sub"><span id="ydCmp"></span></div>
     <div class="facts" id="ydFacts"></div>
+    <div class="rowhead" id="ydHead"></div>
     <div class="rows" id="ydRows"></div>
   </div>
 
@@ -259,11 +267,15 @@ function render(d) {
   }
 
   $('ydFacts').innerHTML = [
-    ['税抜', yen(d.yesterday_excl)],
-    ['客数', (d.yesterday_people || 0).toLocaleString('ja-JP') + '人'],
-    ['組数', (d.yesterday_groups || 0).toLocaleString('ja-JP') + '組'],
-    ['客単価', yen(d.yesterday_per_person || 0)],
-  ].map(([k, v]) => `<div><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
+    ['税抜', yen(d.yesterday_excl), '円'],
+    ['客数', (d.yesterday_people || 0).toLocaleString('ja-JP'), '人'],
+    ['組数', (d.yesterday_groups || 0).toLocaleString('ja-JP'), '組'],
+    ['客単価', yen(d.yesterday_per_person || 0), '円'],
+  ].map(([k, v, u]) => `<div><span class="k">${k}</span><span class="v">${v}<em>${u}</em></span></div>`).join('');
+
+  $('ydHead').innerHTML = `<span class="a">順位・店舗（下段は税抜／客数／組数／客単価）</span>`
+    + `<span class="b">売上（税込）</span>`
+    + `<span class="c">いつもの<br>${d.yesterdayDow}曜比</span>`;
 
   $('ydRows').innerHTML = d.yesterday_shops
     .filter((s) => s.sales !== null)
@@ -275,15 +287,15 @@ function render(d) {
       const cls = !rr ? 'fl' : rr >= 1.03 ? 'up' : rr <= 0.97 ? 'dn' : 'fl';
       const col = cls === 'up' ? 'var(--good)' : cls === 'dn' ? 'var(--bad)' : 'var(--dim2)';
       const sub = [
-        s.excl ? `税抜${yen(s.excl)}` : '',
+        s.excl ? `税抜${yen(s.excl)}円` : '',
         s.people ? `${s.people}人` : '',
         s.groups ? `${s.groups}組` : '',
-        s.per_person ? `@${yen(s.per_person)}` : '',
+        s.per_person ? `客単価${yen(s.per_person)}円` : '',
       ].filter(Boolean).map((t) => `<i>${t}</i>`).join('');
       return `<div class="row"><span class="nm"><span class="${rcls}">${rank}</span>`
         + `<span class="nmtx"><span class="nmm"><span class="kind k-${s.kind}">${KIND[s.kind]}</span>${s.name}</span>`
         + `<span class="sub2">${sub}</span></span></span>`
-        + `<span class="vl">${yen(s.sales)}</span>`
+        + `<span class="vl">${yen(s.sales)}<em>円</em></span>`
         + `<span class="rt" style="color:${col}">${rr ? (rr >= 1 ? '+' : '') + ((rr - 1) * 100).toFixed(0) + '%' : ''}</span></div>`;
     }).join('');
 
