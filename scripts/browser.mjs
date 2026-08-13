@@ -51,7 +51,16 @@ console.log(`
   ─────────────────────────────────────────────────────
 `);
 
+// 何も出ないと固まって見えるので、待っていることを出し続ける
+let waited = 0;
+const beat = setInterval(() => {
+  waited += 10;
+  process.stdout.write(`\r  ブラウザを閉じるのを待っています… ${waited}秒経過（ログインが済んだらブラウザの窓を閉じてください）`);
+}, 10000);
+
 await new Promise((r) => ctx.on('close', r));
+clearInterval(beat);
+process.stdout.write('\n\n  ブラウザが閉じました。ログインを確認します…\n');
 saving = false;
 await keep;
 
