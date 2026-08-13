@@ -286,8 +286,8 @@ function render(d) {
     ['客単価<span style="font-size:9px">税抜</span>', yen(d.yesterday_per_person || 0), '円'],
   ].map(([k, v, u]) => `<div><span class="k">${k}</span><span class="v">${v}<em>${u}</em></span></div>`).join('');
 
-  $('ydHead').innerHTML = `<span class="a">順位・店舗（下段は税抜／客数／組数／客単価）</span>`
-    + `<span class="b">売上（税込）</span>`
+  $('ydHead').innerHTML = `<span class="a">順位・店舗（下段は客数／組数／客単価）</span>`
+    + `<span class="b">売上　上:税込<br>下:税抜</span>`
     + `<span class="c">いつもの<br>${d.yesterdayDow}曜比</span>`;
 
   $('ydRows').innerHTML = d.yesterday_shops
