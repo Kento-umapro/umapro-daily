@@ -206,6 +206,8 @@ try {
     log('  !! MPSのログインが切れています（MPSはスキップ。前回値を使います）');
   } else {
     const years = [...new Set([today.slice(0, 4), String(+today.slice(0, 4) - 1)])];
+    log('MPS 取得中…（月ごとに13店ぶん照会するので数分かかります）');
+    await mp.exposeFunction('mpsLog', (m) => log(`  MPS ${m}`));
     const mps = await mp.evaluate(async (years) => {
       const URL = '/web/Contents/UF/006/UF006-05.aspx';
       const parseVS = (doc) => {
@@ -251,6 +253,7 @@ try {
           return { internal: gi ? +gi[1].replace(/,/g, '') : null, vs: parseVS(doc) };
         };
         for (const mm of monthsY) {
+          await window.mpsLog?.(`${y}-${mm}`);
           // 店舗フィルタは「一度検索したあとのページ」のviewstateでないと効かない
           const base = await search(vsYear, mm, '');
           if (base.internal == null) continue;
