@@ -3,41 +3,48 @@
 # ファイルにもGitHubにも書かれないし、画面にも出ない。
 export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 cd "$HOME/umapro-daily" || exit 1
+exec < /dev/tty          # 入力は必ずキーボードから読む
+
+ask_pw () {   # ask_pw <サービス名> <アカウント>
+  local svc="$1" acct="$2" pw pw2
+  while true; do
+    printf "  パスワード（表示されません）: "
+    read -rs pw; echo
+    if [[ -z "$pw" ]]; then echo "  空です。入れ直してください"; continue; fi
+    printf "  もう一度: "
+    read -rs pw2; echo
+    if [[ "$pw" != "$pw2" ]]; then echo "  一致しません。入れ直してください"; continue; fi
+    break
+  done
+  security delete-generic-password -s "$svc" >/dev/null 2>&1
+  security add-generic-password -s "$svc" -a "$acct" -w "$pw" -U || return 1
+  pw=""; pw2=""
+  local n
+  n=$(security find-generic-password -s "$svc" -w 2>/dev/null | tr -d '\n' | wc -c | tr -d ' ')
+  echo "  → 保存しました（${n}文字）"
+}
 
 echo
 echo "  ───────────────────────────────────────────────"
 echo "   自動ログインの設定"
-echo "   パスワードはキーチェーンに保存します（画面には出ません）"
+echo "   パスワードはキーチェーンにだけ入ります"
 echo "  ───────────────────────────────────────────────"
 echo
 
-# ── blayn ─────────────────────────────────────────
 echo "▼ blayn"
 printf "  ログインID: "
-read BLAYN_ID
-if [[ -n "$BLAYN_ID" ]]; then
-  security delete-generic-password -s umapro-blayn >/dev/null 2>&1
-  echo "  パスワードを入力してください（表示されません）"
-  security add-generic-password -s umapro-blayn -a "$BLAYN_ID" -w -U || exit 1
-  echo "  → 保存しました"
-fi
+read -r BLAYN_ID
+[[ -n "$BLAYN_ID" ]] && ask_pw umapro-blayn "$BLAYN_ID"
 echo
 
-# ── MPS ───────────────────────────────────────────
 echo "▼ MPS（multiweb）"
 printf "  企業コード: "
-read MPS_KIGYO
+read -r MPS_KIGYO
 printf "  アカウント: "
-read MPS_ACCT
-if [[ -n "$MPS_ACCT" ]]; then
-  security delete-generic-password -s umapro-mps >/dev/null 2>&1
-  echo "  パスワードを入力してください（表示されません）"
-  security add-generic-password -s umapro-mps -a "$MPS_ACCT" -w -U || exit 1
-  echo "  → 保存しました"
-fi
+read -r MPS_ACCT
+[[ -n "$MPS_ACCT" ]] && ask_pw umapro-mps "$MPS_ACCT"
 echo
 
-# IDと企業コードは config.json に書く（config.json はコミットされない）
 python3 - "$BLAYN_ID" "$MPS_KIGYO" "$MPS_ACCT" <<'PY'
 import json, sys, os
 p = os.path.join(os.path.expanduser('~'), 'umapro-daily', 'config.json')
@@ -53,13 +60,17 @@ if kigyo or acct:
         c['mps']['account'] = acct
 c['_login'] = 'パスワードはキーチェーン（umapro-blayn / umapro-mps）。ここにはIDだけ'
 json.dump(c, open(p, 'w'), ensure_ascii=False, indent=2)
-print('  設定を保存しました')
+print('  IDを保存しました')
 PY
 
 echo
-echo "  続けて、自動ログインで取れるか試します…"
+echo "  ───────────────────────────────────────────────"
+echo "   自動ログインを試します。10分ほどかかります。"
+echo "   途中の行が流れていれば動いています。"
+echo "  ───────────────────────────────────────────────"
 echo
-node scripts/fetch.mjs 2>&1 | tail -12
+node scripts/fetch.mjs && python3 scripts/build.py && node scripts/encrypt.mjs \
+  && git add docs && git commit -q -m "$(date +%F) 更新" && git push -q origin main \
+  && echo && echo "  サイトを更新しました"
 echo
-echo "  「blayn ○○行」「MPS ○○行」と出ていれば成功です。"
-echo "  このウィンドウは閉じて大丈夫です。"
+echo "  終わりです。このウィンドウは閉じて大丈夫です。"
