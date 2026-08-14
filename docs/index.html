@@ -90,6 +90,7 @@ header .u b{display:block;font-weight:400;color:var(--ember);opacity:.85;font-fa
 .mtd{display:block;font-size:10.5px;color:var(--dim2);font-family:var(--m);
   padding:3px 0 0 28px;line-height:1.5}
 .mtd i{font-style:normal;margin-left:8px;white-space:nowrap;display:inline-block}
+.mtd b{font-weight:400;font-size:9px;color:var(--dim2);margin-left:2px;font-family:var(--f)}
 .sc{display:flex;gap:3px;margin:4px 0 0;flex-wrap:nowrap;align-items:center}
 .sc i{font-style:normal;font-size:10px;font-family:var(--m);background:var(--card2);
   border-radius:4px;padding:2px 0;color:var(--ink);white-space:nowrap;flex:1;text-align:center;
@@ -338,8 +339,8 @@ function render(d) {
   const mt = d.mtd_total || {};
   if (mt.incl) {
     $('ydFacts').insertAdjacentHTML('afterend',
-      `<div class="mtdall">今月ここまで（全店）　<b>${man(mt.incl)}万円</b>`
-      + `<span>税抜 ${man(mt.excl)}万円　${mt.people.toLocaleString('ja-JP')}人　`
+      `<div class="mtdall">今月ここまで（全店・税抜）　<b>${man(mt.excl)}万円</b>`
+      + `<span>税込 ${man(mt.incl)}万円　${mt.people.toLocaleString('ja-JP')}人　`
       + `${mt.groups.toLocaleString('ja-JP')}組　客単価 ${yen(mt.per_person)}円（税抜）</span></div>`);
   }
 
@@ -362,7 +363,7 @@ function render(d) {
         s.per_person ? `客単価${yen(s.per_person)}円(税抜)` : '',
       ].filter(Boolean).map((t) => `<i>${t}</i>`).join('');
       const m = s.mtd || {};
-      const mline = m.incl ? `<span class="mtd">今月 ${man(m.incl)}万円`
+      const mline = m.incl ? `<span class="mtd">今月 ${man(m.excl)}万円<b>税抜</b>`
         + `<i>${(m.people || 0).toLocaleString('ja-JP')}人</i>`
         + `<i>${(m.groups || 0).toLocaleString('ja-JP')}組</i>`
         + `<i>客単価${yen(m.per_person || 0)}円</i>`
