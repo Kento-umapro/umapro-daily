@@ -17,7 +17,9 @@ POS(日別) ├→ .cache/raw.json → build.py → .cache/payload.json → encr
 
 ## 毎朝の自動更新
 
-`~/Library/LaunchAgents/com.umapro.daily.plist` が毎朝 **9:10** に `run.sh` を叩く。
+`~/Library/LaunchAgents/com.umapro.daily.plist` が毎朝 **9:30** に `run.sh` を叩く。
+POS側の集計が終わっていないことがあるので、前日ぶんが全店そろうまで **10分おきに再挑戦**する
+（9:30〜12:00）。そろったら `.cache/done-YYYY-MM-DD` を置いて、その日はもう走らない。
 専用のブラウザプロファイル `.profile` を使うので、他の朝のジョブとぶつからない。
 
 ```bash
