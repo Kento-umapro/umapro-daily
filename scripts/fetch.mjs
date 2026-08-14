@@ -87,11 +87,15 @@ try {
       rows { name totalTaxIncludedAmount totalTaxExcludedAmount numPeople groupCount }
     }
   }`;
+  // 月を1日ずつ進めると、31日→翌月末が無い等でその月が飛ぶ。必ず「1日」で回す。
   const months = [];
-  for (const t = new Date(FROM + 'T00:00:00'); t <= new Date(today + 'T00:00:00'); t.setMonth(t.getMonth() + 1)) {
+  {
     const f = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
-    const a = new Date(t.getFullYear(), t.getMonth(), 1), b = new Date(t.getFullYear(), t.getMonth() + 1, 0);
-    months.push([f(a) < FROM ? FROM : f(a), f(b) > today ? today : f(b)]);
+    const last = new Date(+today.slice(0, 4), +today.slice(5, 7) - 1, 1);
+    for (const t = new Date(+FROM.slice(0, 4), +FROM.slice(5, 7) - 1, 1); t <= last; t.setMonth(t.getMonth() + 1)) {
+      const a = new Date(t.getFullYear(), t.getMonth(), 1), b = new Date(t.getFullYear(), t.getMonth() + 1, 0);
+      months.push([f(a) < FROM ? FROM : f(a), f(b) > today ? today : f(b)]);
+    }
   }
   for (const s of shops) {
     for (const [a, b] of months) {
@@ -211,8 +215,11 @@ try {
   if ((await mode()) !== '税込') throw new Error('blaynを税込表示に切り替えられませんでした');
 
   const ymList = [];
-  for (const t = new Date(FROM + 'T00:00:00'); t <= new Date(today + 'T00:00:00'); t.setMonth(t.getMonth() + 1)) {
-    ymList.push([t.getFullYear(), t.getMonth() + 1]);
+  {
+    const last = new Date(+today.slice(0, 4), +today.slice(5, 7) - 1, 1);
+    for (const t = new Date(+FROM.slice(0, 4), +FROM.slice(5, 7) - 1, 1); t <= last; t.setMonth(t.getMonth() + 1)) {
+      ymList.push([t.getFullYear(), t.getMonth() + 1]);
+    }
   }
 
   // 列は月によって増減する（現金値引などが入る）ので、見出しの名前で位置を探す
