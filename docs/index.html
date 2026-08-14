@@ -64,10 +64,13 @@ header .u b{display:block;font-weight:400;color:var(--ember);opacity:.85;font-fa
 .facts .v{font-family:var(--m);font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;
   white-space:nowrap;letter-spacing:-.03em}
 @media (max-width:400px){ .facts .v{font-size:11.5px} }
-.scall{margin-top:10px;padding:8px 11px;background:var(--card2);border-radius:9px;
-  font-size:11.5px;color:var(--dim);display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.scall{margin-top:10px;padding:9px 11px;background:var(--card2);border-radius:9px;
+  font-size:11.5px;color:var(--dim)}
+.scall .hd{display:block;font-size:10.5px;color:var(--dim2);margin-bottom:5px}
+.scall .ln{display:flex;align-items:center;gap:3px;flex-wrap:nowrap}
 .scall i{font-style:normal;font-size:10.5px;font-family:var(--m);background:var(--card);
-  border-radius:5px;padding:2px 6px;color:var(--ink);white-space:nowrap}
+  border-radius:5px;padding:3px 0;color:var(--ink);white-space:nowrap;flex:1;text-align:center;min-width:0}
+.scall i.tot,.scall i.ans{flex:0 0 auto;padding:3px 7px}
 .scall i b{font-weight:600;color:var(--dim2);font-family:var(--f);margin-right:3px;font-size:9.5px}
 .scall i.tot{background:rgba(224,122,60,.2);color:var(--ember);font-weight:700}
 .scall i.ans{background:transparent;color:var(--dim2)}
@@ -87,11 +90,15 @@ header .u b{display:block;font-weight:400;color:var(--ember);opacity:.85;font-fa
 .mtd{display:block;font-size:10.5px;color:var(--dim2);font-family:var(--m);
   padding:3px 0 0 28px;line-height:1.5}
 .mtd i{font-style:normal;margin-left:8px;white-space:nowrap;display:inline-block}
-.sc{display:flex;gap:3px;margin:3px 0 1px;flex-wrap:wrap}
-.sc i{font-style:normal;font-size:9.5px;font-family:var(--m);background:var(--card2);
-  border-radius:4px;padding:1px 4px;color:var(--ink);white-space:nowrap}
+.sc{display:flex;gap:3px;margin:4px 0 0;flex-wrap:nowrap;align-items:center}
+.sc i{font-style:normal;font-size:10px;font-family:var(--m);background:var(--card2);
+  border-radius:4px;padding:2px 0;color:var(--ink);white-space:nowrap;flex:1;text-align:center;
+  min-width:0}
+.sc i.tot,.sc i.ans{flex:0 0 auto;padding:2px 6px}
 .sc i.tot{background:rgba(224,122,60,.18);color:var(--ember);font-weight:700}
-.sc i b{font-weight:600;color:var(--dim2);font-family:var(--f);margin-right:3px;font-size:9.5px}
+.sc i.ans{background:transparent;color:var(--dim2);font-size:9px}
+@media (max-width:380px){ .sc i{font-size:9px} .sc i b{font-size:8px} }
+.sc i b{font-weight:600;color:var(--dim2);font-family:var(--f);margin-right:2px;font-size:9px}
 .sc i.ans{background:transparent;color:var(--dim2)}
 .row .sub2{font-size:10.5px;color:var(--dim2);font-family:var(--m);display:block;line-height:1.5;
   white-space:normal}
@@ -322,9 +329,10 @@ function render(d) {
   const sall = d.score_total;
   if (sall) {
     $('ydFacts').insertAdjacentHTML('afterend',
-      `<div class="scall">アンケート（${(d.score_date || '').slice(5).replace('-', '/')}）　`
+      `<div class="scall"><span class="hd">アンケート（${(d.score_date || '').slice(5).replace('-', '/')}）`
+      + `　回答${sall.answers}件・${sall.shops}店</span><span class="ln">`
       + SCORE_KEYS.map(([k, lb]) => `<i><b>${lb}</b>${sall[k] ?? '—'}</i>`).join('')
-      + `<i class="tot">計${sall.total}</i><i class="ans">回答${sall.answers}件・${sall.shops}店</i></div>`);
+      + `<i class="tot">計${sall.total}</i></span></div>`);
   }
 
   const mt = d.mtd_total || {};
@@ -369,11 +377,11 @@ function render(d) {
       return `<div class="row2">`
         + `<div class="row"><span class="nm"><span class="${rcls}">${rank}</span>`
         + `<span class="nmtx"><span class="nmm"><span class="kind k-${s.kind}">${KIND[s.kind]}</span>${s.name}</span>`
-        + scInline + `<span class="sub2">${sub}</span></span></span>`
+        + `<span class="sub2">${sub}</span></span></span>`
         + `<span class="vl">${yen(s.sales)}<em>円</em>`
         + (s.excl ? `<b>${yen(s.excl)}<em>円</em></b>` : '') + `</span>`
         + `<span class="rt" style="color:${col}">${rr ? (rr >= 1 ? '+' : '') + ((rr - 1) * 100).toFixed(0) + '%' : ''}</span></div>`
-        + mline + `</div>`;
+        + scInline + mline + `</div>`;
     }).join('');
 
   const mx = Math.max(...d.trend.map((t) => t.sales), 1);
