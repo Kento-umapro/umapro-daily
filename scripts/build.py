@@ -252,7 +252,15 @@ def day_tag(d):
     return None
 
 
-# 今月ここまでの累計（店別）
+# 今月ここまでの累計と、月末の着地予想（店別）
+# 着地＝ここまでの実績 ＋ 残り日数ぶんの見込み。
+# 残りは1日ずつ「その店のその曜日の力」で積む（月係数×曜日シェア）ので、
+# 残りに土日が何日あるかで結果が変わる。
+_dim = calendar.monthrange(TODAY.year, TODAY.month)[1]
+_rest_days = [dt.date(TODAY.year, TODAY.month, i) for i in range(1, _dim + 1) if dt.date(TODAY.year, TODAY.month, i) > YESTERDAY]
+REST_N = len(_rest_days)
+REST_WE = sum(1 for d0 in _rest_days if d0.weekday() >= 5 or day_tag(d0))
+
 mtd = {}
 for c in SHOPS:
     inc = ex = pe = gr = 0
@@ -266,10 +274,16 @@ for c in SHOPS:
         pe += d0.get('people', 0)
         gr += d0.get('groups', 0)
         days_open += 1
+    rest = sum(expected_day(c, d0) for d0 in _rest_days)
+    fc_incl = inc + rest
+    ratio = (ex / inc) if inc else (1 / 1.1)
     mtd[c] = {
         'incl': round(inc), 'excl': round(ex), 'people': pe, 'groups': gr, 'days': days_open,
         'per_person': round(ex / pe) if pe else None,
         'per_group': round(ex / gr) if gr else None,
+        'fc_incl': round(fc_incl), 'fc_excl': round(fc_incl * ratio),
+        'rest_days': REST_N, 'rest_we': REST_WE,
+        'pace': (fc_incl / inc) if inc else None,
     }
 
 yday_shops = []
@@ -432,6 +446,7 @@ payload = {
         'total': sum(round(statistics.mean([v[k] for v in scores.values() if v.get(k) is not None]))
                      for k in ('repeat', 'service', 'food', 'speed', 'clean')),
     } if scores else None),
+    'rest_days': REST_N, 'rest_we': REST_WE,
     'mtd_total': {
         'incl': sum(m['incl'] for m in mtd.values()),
         'excl': sum(m['excl'] for m in mtd.values()),
@@ -441,6 +456,8 @@ payload = {
                        if sum(m['people'] for m in mtd.values()) else None),
         'per_group': (round(sum(m['excl'] for m in mtd.values()) / sum(m['groups'] for m in mtd.values()))
                       if sum(m['groups'] for m in mtd.values()) else None),
+        'fc_incl': sum(m['fc_incl'] for m in mtd.values()),
+        'fc_excl': sum(m['fc_excl'] for m in mtd.values()),
     },
     'shop_count': len(SHOPS),
     'yesterday_expected': round(yday_exp),

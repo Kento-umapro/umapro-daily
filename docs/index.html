@@ -77,6 +77,8 @@ header .u b{display:block;font-weight:400;color:var(--ember);opacity:.85;font-fa
 .mtdall{margin-top:10px;padding:9px 11px;background:var(--card2);border-radius:9px;
   font-size:12px;color:var(--dim)}
 .mtdall b{font-family:var(--m);font-size:14px;color:var(--ink)}
+.mtdall u{text-decoration:none;font-family:var(--m);font-size:14px;color:var(--ember);
+  font-weight:700;margin-left:12px}
 .mtdall span{display:block;font-size:10.5px;color:var(--dim2);font-family:var(--m);margin-top:2px}
 .rowhead{display:flex;align-items:center;gap:8px;margin-top:16px;padding-bottom:6px;
   font-size:10.5px;color:var(--dim2)}
@@ -91,6 +93,9 @@ header .u b{display:block;font-weight:400;color:var(--ember);opacity:.85;font-fa
   padding:3px 0 0 28px;line-height:1.5}
 .mtd i{font-style:normal;margin-left:8px;white-space:nowrap;display:inline-block}
 .mtd b{font-weight:400;font-size:9px;color:var(--dim2);margin-left:2px;font-family:var(--f)}
+.mtd.fc{color:var(--steel);padding-top:1px}
+.mtd.fc em{font-style:normal;font-weight:700;font-size:12px;color:var(--ink)}
+.mtd.fc b{color:var(--dim2)}
 .sc{display:flex;gap:3px;margin:4px 0 0;flex-wrap:nowrap;align-items:center}
 .sc i{font-style:normal;font-size:10px;font-family:var(--m);background:var(--card2);
   border-radius:4px;padding:2px 0;color:var(--ink);white-space:nowrap;flex:1;text-align:center;
@@ -340,8 +345,10 @@ function render(d) {
   if (mt.incl) {
     $('ydFacts').insertAdjacentHTML('afterend',
       `<div class="mtdall">今月ここまで（全店・税抜）　<b>${man(mt.excl)}万円</b>`
+      + `<u>着地予想 ${man(mt.fc_excl)}万円</u>`
       + `<span>税込 ${man(mt.incl)}万円　${mt.people.toLocaleString('ja-JP')}人　`
-      + `${mt.groups.toLocaleString('ja-JP')}組　客単価 ${yen(mt.per_person)}円（税抜）</span></div>`);
+      + `${mt.groups.toLocaleString('ja-JP')}組　客単価 ${yen(mt.per_person)}円（税抜）`
+      + `　／　残り${d.rest_days}日（うち土日祝${d.rest_we}日）</span></div>`);
   }
 
   $('ydHead').innerHTML = `<span class="a">順位・店舗（下段は客数／組数／客単価）</span>`
@@ -368,6 +375,8 @@ function render(d) {
         + `<i>${(m.groups || 0).toLocaleString('ja-JP')}組</i>`
         + `<i>客単価${yen(m.per_person || 0)}円</i>`
         + `<i>${m.days}日</i></span>` : '';
+      const fline = m.fc_excl ? `<span class="mtd fc">着地予想 <em>${man(m.fc_excl)}万円</em><b>税抜</b>`
+        + `<i>残り${m.rest_days}日（うち土日祝${m.rest_we}日）</i></span>` : '';
       const sc = s.score;
       const vals = sc ? SCORE_KEYS.map(([k]) => sc[k]).filter((x) => x != null) : [];
       const scTotal = vals.length ? vals.reduce((a, b) => a + b, 0) : null;
