@@ -122,6 +122,18 @@ for c in SHOPS:
             if ym < CUR_YM and full_month(c, ym) and monthly[(c, ym)] > 0]
     level[c] = statistics.mean(vals[-6:]) if vals else 0
 
+def day_tag(d):
+    """祝日やお盆かどうか。平常比が大きく振れる日の目印"""
+    iso = d.isoformat()
+    t = CFG.get('calendar', {}).get(iso)
+    if t:
+        return t
+    ob = CFG.get('obon')
+    if ob and ob['from'] <= iso <= ob['to']:
+        return ob['label']
+    return None
+
+
 # ── 5. 日次の見込み ───────────────────────────────────────────
 def expected_day(code, d):
     """その日の期待売上。月の総額を曜日シェアで割り振る。"""
@@ -134,10 +146,44 @@ def expected_day(code, d):
     return level[code] * season[m] * wts[d.day - 1] / tot
 
 
-def month_forecast(code, ym):
-    """その月の着地見込み。実績が入っている日はそのまま、残りは期待値。"""
+def pace_ratio(code, ym):
+    """その月が、モデルの見立てに対して何倍で走っているか。
+
+    これが無いと「月の水準の見立てが高すぎる／低すぎる」ぶんが残り日数に丸ごと乗ってしまい、
+    前半の実績と後半の予想がつながらない数字になる。
+    ・祝日やお盆は効き方が違うので、ふつうの日だけで測る（5日以上あるとき）
+    ・日数が少ないうちは1.0に寄せる（縮小推定）
+    """
     y, m = int(ym[:4]), int(ym[5:])
     dim = calendar.monthrange(y, m)[1]
+    a_all = e_all = a_ord = e_ord = 0.0
+    n = n_ord = 0
+    for i in range(1, dim + 1):
+        d = dt.date(y, m, i)
+        if d > YESTERDAY:
+            break
+        v = daily.get((code, d.isoformat()))
+        if not v:
+            continue
+        e = expected_day(code, d)
+        if e <= 0:
+            continue
+        a_all += v; e_all += e; n += 1
+        if not day_tag(d):
+            a_ord += v; e_ord += e; n_ord += 1
+    if not n or not e_all:
+        return None
+    base = (a_ord / e_ord) if (n_ord >= 5 and e_ord) else (a_all / e_all)
+    w = n / (n + 5)
+    return max(0.6, min(1.5, 1 + w * (base - 1)))
+
+
+def month_forecast(code, ym):
+    """その月の着地見込み。実績が入っている日はそのまま、
+    残りは「期待値 × その月の走り具合」で積む。"""
+    y, m = int(ym[:4]), int(ym[5:])
+    dim = calendar.monthrange(y, m)[1]
+    r = pace_ratio(code, ym) or 1.0
     got, rest = 0, 0
     for i in range(1, dim + 1):
         d = dt.date(y, m, i)
@@ -147,7 +193,7 @@ def month_forecast(code, ym):
         elif d <= YESTERDAY:
             pass                              # 実績が無い＝休業日とみなして0
         else:
-            rest += expected_day(code, d)
+            rest += expected_day(code, d) * r
     return got, rest
 
 
@@ -241,17 +287,6 @@ def usual(code, d, weeks=8):
     return statistics.median(vs) if len(vs) >= 3 else None
 
 
-def day_tag(d):
-    iso = d.isoformat()
-    t = CFG.get('calendar', {}).get(iso)
-    if t:
-        return t
-    ob = CFG.get('obon')
-    if ob and ob['from'] <= iso <= ob['to']:
-        return ob['label']
-    return None
-
-
 # 今月ここまでの累計と、月末の着地予想（店別）
 # 着地＝ここまでの実績 ＋ 残り日数ぶんの見込み。
 # 残りは1日ずつ「その店のその曜日の力」で積む（月係数×曜日シェア）ので、
@@ -274,7 +309,8 @@ for c in SHOPS:
         pe += d0.get('people', 0)
         gr += d0.get('groups', 0)
         days_open += 1
-    rest = sum(expected_day(c, d0) for d0 in _rest_days)
+    _pr = pace_ratio(c, CUR_YM) or 1.0
+    rest = sum(expected_day(c, d0) for d0 in _rest_days) * _pr
     fc_incl = inc + rest
     ratio = (ex / inc) if inc else (1 / 1.1)
     mtd[c] = {
@@ -283,7 +319,7 @@ for c in SHOPS:
         'per_group': round(ex / gr) if gr else None,
         'fc_incl': round(fc_incl), 'fc_excl': round(fc_incl * ratio),
         'rest_days': REST_N, 'rest_we': REST_WE,
-        'pace': (fc_incl / inc) if inc else None,
+        'run': round(_pr, 3),
     }
 
 yday_shops = []

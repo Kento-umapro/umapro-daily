@@ -348,7 +348,7 @@ function render(d) {
       + `<u>着地予想 ${man(mt.fc_excl)}万円</u>`
       + `<span>税込 ${man(mt.incl)}万円　${mt.people.toLocaleString('ja-JP')}人　`
       + `${mt.groups.toLocaleString('ja-JP')}組　客単価 ${yen(mt.per_person)}円（税抜）`
-      + `　／　残り${d.rest_days}日（うち土日祝${d.rest_we}日）</span></div>`);
+      + `　／　残り${d.rest_days}日（うち土日祝${d.rest_we}日）・ここまでの走りで補正済み</span></div>`);
   }
 
   $('ydHead').innerHTML = `<span class="a">順位・店舗（下段は客数／組数／客単価）</span>`
@@ -376,7 +376,8 @@ function render(d) {
         + `<i>客単価${yen(m.per_person || 0)}円</i>`
         + `<i>${m.days}日</i></span>` : '';
       const fline = m.fc_excl ? `<span class="mtd fc">着地予想 <em>${man(m.fc_excl)}万円</em><b>税抜</b>`
-        + `<i>残り${m.rest_days}日（うち土日祝${m.rest_we}日）</i></span>` : '';
+        + `<i>残り${m.rest_days}日（うち土日祝${m.rest_we}日）</i>`
+        + (m.run ? `<i>走り×${m.run.toFixed(2)}</i>` : '') + `</span>` : '';
       const sc = s.score;
       const vals = sc ? SCORE_KEYS.map(([k]) => sc[k]).filter((x) => x != null) : [];
       const scTotal = vals.length ? vals.reduce((a, b) => a + b, 0) : null;
