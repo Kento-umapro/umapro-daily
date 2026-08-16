@@ -391,7 +391,7 @@ function render(d) {
         + `<span class="vl">${yen(s.sales)}<em>円</em>`
         + (s.excl ? `<b>${yen(s.excl)}<em>円</em></b>` : '') + `</span>`
         + `<span class="rt" style="color:${col}">${rr ? (rr >= 1 ? '+' : '') + ((rr - 1) * 100).toFixed(0) + '%' : ''}</span></div>`
-        + scInline + mline + `</div>`;
+        + scInline + mline + fline + `</div>`;
     }).join('');
 
   const mx = Math.max(...d.trend.map((t) => t.sales), 1);
