@@ -95,6 +95,7 @@ header .u b{display:block;font-weight:400;color:var(--ember);opacity:.85;font-fa
 .mtd b{font-weight:400;font-size:9px;color:var(--dim2);margin-left:2px;font-family:var(--f)}
 .mtd.fc{color:var(--steel);padding-top:1px}
 .mtd.fc em{font-style:normal;font-weight:700;font-size:12px;color:var(--ink)}
+.mtd.fc em.cum{color:var(--dim)}
 .mtd.fc b{color:var(--dim2)}
 .sc{display:flex;gap:3px;margin:4px 0 0;flex-wrap:nowrap;align-items:center}
 .sc i{font-style:normal;font-size:10px;font-family:var(--m);background:var(--card2);
@@ -345,10 +346,10 @@ function render(d) {
   if (mt.incl) {
     $('ydFacts').insertAdjacentHTML('afterend',
       `<div class="mtdall">今月ここまで（全店・税抜）　<b>${man(mt.excl)}万円</b>`
-      + `<u>着地予想 ${man(mt.fc_excl)}万円</u>`
+      + `<u>→ 着地予想 ${man(mt.fc_excl)}万円</u>`
       + `<span>税込 ${man(mt.incl)}万円　${mt.people.toLocaleString('ja-JP')}人　`
       + `${mt.groups.toLocaleString('ja-JP')}組　客単価 ${yen(mt.per_person)}円（税抜）`
-      + `　／　残り${d.rest_days}日（うち土日祝${d.rest_we}日）・ここまでの走りで補正済み</span></div>`);
+      + `　／　残り${d.rest_days}日・ここまでの走りで補正済み</span></div>`);
   }
 
   $('ydHead').innerHTML = `<span class="a">順位・店舗（下段は客数／組数／客単価）</span>`
@@ -370,13 +371,13 @@ function render(d) {
         s.per_person ? `客単価${yen(s.per_person)}円(税抜)` : '',
       ].filter(Boolean).map((t) => `<i>${t}</i>`).join('');
       const m = s.mtd || {};
-      const mline = m.incl ? `<span class="mtd">今月 ${man(m.excl)}万円<b>税抜</b>`
-        + `<i>${(m.people || 0).toLocaleString('ja-JP')}人</i>`
+      const mline = m.incl ? `<span class="mtd">今月${m.days}日 `
+        + `<i style="margin-left:0">${(m.people || 0).toLocaleString('ja-JP')}人</i>`
         + `<i>${(m.groups || 0).toLocaleString('ja-JP')}組</i>`
-        + `<i>客単価${yen(m.per_person || 0)}円</i>`
-        + `<i>${m.days}日</i></span>` : '';
-      const fline = m.fc_excl ? `<span class="mtd fc">着地予想 <em>${man(m.fc_excl)}万円</em><b>税抜</b>`
-        + `<i>残り${m.rest_days}日（うち土日祝${m.rest_we}日）</i>`
+        + `<i>客単価${yen(m.per_person || 0)}円</i></span>` : '';
+      const fline = m.fc_excl ? `<span class="mtd fc">`
+        + `<em class="cum">${man(m.excl)}万円</em> → 着地予想 <em>${man(m.fc_excl)}万円</em><b>税抜</b>`
+        + `<i>残り${m.rest_days}日</i>`
         + (m.run ? `<i>走り×${m.run.toFixed(2)}</i>` : '') + `</span>` : '';
       const sc = s.score;
       const vals = sc ? SCORE_KEYS.map(([k]) => sc[k]).filter((x) => x != null) : [];
