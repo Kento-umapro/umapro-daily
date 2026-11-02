@@ -381,10 +381,14 @@ function render(d) {
         + `<i style="margin-left:0">${(m.people || 0).toLocaleString('ja-JP')}人</i>`
         + `<i>${(m.groups || 0).toLocaleString('ja-JP')}組</i>`
         + `<i>客単価${yen(m.per_person || 0)}円</i></span>` : '';
-      const fline = m.fc_excl ? `<span class="mtd fc">`
-        + `<em class="cum">${man(m.excl)}万円</em> → 着地予想 <em>${man(m.fc_excl)}万円</em><b>税抜</b>`
-        + `<i>残り${m.rest_days}日</i>`
-        + (m.run ? `<i>走り×${m.run.toFixed(2)}</i>` : '') + `</span>` : '';
+      const fline = !m.incl ? ''
+        : m.no_fc ? `<span class="mtd fc">`
+          + `<em class="cum">${man(m.excl)}万円</em><b>税抜</b>`
+          + `<i style="color:var(--dim2)">${m.note || '着地予想はまだ出せません'}</i></span>`
+        : m.fc_excl ? `<span class="mtd fc">`
+          + `<em class="cum">${man(m.excl)}万円</em> → 着地予想 <em>${man(m.fc_excl)}万円</em><b>税抜</b>`
+          + `<i>残り${m.rest_days}日</i>`
+          + (m.run ? `<i>走り×${m.run.toFixed(2)}</i>` : '') + `</span>` : '';
       const sc = s.score;
       const vals = sc ? SCORE_KEYS.map(([k]) => sc[k]).filter((x) => x != null) : [];
       const scTotal = vals.length ? vals.reduce((a, b) => a + b, 0) : null;
